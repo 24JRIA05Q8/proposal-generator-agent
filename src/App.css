@@ -1,0 +1,148 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f4f7fb;
+  color: #1f2937;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+.header {
+  background-color: #0f3d75;
+  color: white;
+  padding: 24px;
+  text-align: center;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 32px;
+  color: white;
+}
+
+.header p {
+  margin-top: 8px;
+  color: #dbeafe;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 24px;
+}
+
+.chat-section,
+.proposal-section {
+  background-color: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.chat-section h2,
+.proposal-section h2 {
+  margin-top: 0;
+  color: #0f3d75;
+}
+
+.chat-box {
+  height: 360px;
+  overflow-y: auto;
+  border: 1px solid #d1d5db;
+  background-color: #f9fafb;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.ai-message,
+.user-message {
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.ai-message {
+  background-color: #e0ecff;
+}
+
+.user-message {
+  background-color: #dcfce7;
+}
+
+.input-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.input-row input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.input-row button,
+.generate-button {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: #0f3d75;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.generate-button {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.proposal-box {
+  min-height: 430px;
+  border: 1px solid #d1d5db;
+  background-color: #f9fafb;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.proposal-box pre {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  font-family: Arial, sans-serif;
+}
+
+.empty-text {
+  color: #6b7280;
+}
+
+@media (max-width: 900px) {
+  .main {
+    grid-template-columns: 1fr;
+  }
+}
+.text-logo {
+  background: white;
+  color: #0f3d75;
+  font-size: 22px;
+  font-weight: 800;
+  padding: 10px 18px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  display: inline-block;
+}
+
+.brand-text {
+  color: #0f3d75;
+  font-size: 22px;
+  font-weight: bold;
+}
