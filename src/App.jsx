@@ -318,6 +318,7 @@ function App() {
 
   return (
     <div className="app">
+      <div className="curve-highlight"></div>
       <header className="header">
         <img
           src="/atoms-logo.jpg"
