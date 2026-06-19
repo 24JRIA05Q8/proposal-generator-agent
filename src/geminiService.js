@@ -416,16 +416,30 @@ function isValidPricing(text) {
   if (isBadInput(value)) return false;
   if (isGenericOnly(value)) return false;
 
-  return (
+  const hasMoney =
     value.includes("₹") ||
     value.includes("rs") ||
+    value.includes("rupee") ||
+    /\b\d{4,}\b/.test(value);
+
+  const hasPricingKeyword =
     value.includes("pricing") ||
+    value.includes("price") ||
     value.includes("service fee") ||
+    value.includes("professional fee") ||
     value.includes("ad budget") ||
     value.includes("gst") ||
-    value.includes("confirmed") ||
-    /\b\d{4,}\b/.test(value)
-  );
+    value.includes("per month") ||
+    value.includes("/month") ||
+    value.includes("monthly") ||
+    value.includes("separate") ||
+    value.includes("confirmed");
+
+  const looksLikeOnlyPackage =
+    (value.includes("package") || value.includes("proposal")) &&
+    !hasPricingKeyword;
+
+  return hasMoney && hasPricingKeyword && !looksLikeOnlyPackage;
 }
 
 function splitUserInputIntoSegments(messages) {

@@ -67,6 +67,19 @@ function App() {
     }
   }
 
+  function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("AI took too long. Local fallback used.")), ms)
+    ),
+  ]);
+}
+
   function escapeHtml(text) {
     return String(text)
       .replaceAll("&", "&amp;")
@@ -251,8 +264,10 @@ function App() {
     }
   }
 
-  async function generateProposalPreview() {
-    setIsGeneratingProposal(true);
+ async function generateProposalPreview() {
+  const loadingStartTime = Date.now();
+
+  setIsGeneratingProposal(true);
     setSaveStatus("");
 
     try {
@@ -276,7 +291,7 @@ function App() {
       let proposalText = "";
 
       try {
-        proposalText = await generateProposalWithGemini(messages);
+        proposalText = await withTimeout(generateProposalWithGemini(messages), 5000);
       } catch (error) {
         console.error("Gemini proposal generation failed. Local fallback used.");
         console.error(error);
@@ -299,9 +314,17 @@ function App() {
     } catch (error) {
       console.error(error);
       setSaveStatus(`Proposal generation failed: ${error.message}`);
-    } finally {
-      setIsGeneratingProposal(false);
-    }
+    } 
+    finally {
+  const elapsedTime = Date.now() - loadingStartTime;
+  const remainingTime = 800 - elapsedTime;
+
+  if (remainingTime > 0) {
+    await new Promise((resolve) => setTimeout(resolve, remainingTime));
+  }
+
+  setIsGeneratingProposal(false);
+}
   }
 
   function resetApp() {
