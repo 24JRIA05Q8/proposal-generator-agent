@@ -4,14 +4,18 @@ import {
   getGeminiReply,
   generateProposalWithGemini,
   generateLocalProposal,
+  getValidatedConversation,
 } from "./geminiService";
 import { saveProposalSession } from "./supabaseClient";
 
 function App() {
+  const initialMessage =
+    "Hi! I am the Atoms Proposal Generator Agent. You can enter all details in one message or step by step. Example: Hospital | Blossoms Children Hospital, Guntur | Blossoms package - 12 reels, 4 posters | Instagram, Facebook, YouTube, GMB | Meta Ads only | ₹40,000 service fee, ₹10,000 ad budget separate";
+
   const [messages, setMessages] = useState([
     {
       sender: "ai",
-      text: "Hi! I am the Proposal Generator Agent. Is this proposal for a hospital or a doctor?",
+      text: initialMessage,
     },
   ]);
 
@@ -21,73 +25,50 @@ function App() {
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
 
-  function isFinalConfirmationMessage(text) {
-    const lowerText = text.toLowerCase();
-
-    return (
-      lowerText.includes("all information is correct") ||
-      lowerText.includes("all details are correct") ||
-      lowerText.includes("yes, correct") ||
-      lowerText === "yes"
-    );
-  }
-
-  function getFallbackReply(currentMessages) {
-    const userMessages = currentMessages.filter(
-      (message) => message.sender === "user"
-    );
-
-    const firstAnswer = userMessages[0]?.text.toLowerCase() || "";
-    const userMessageCount = userMessages.length;
-
-    if (userMessageCount === 1) {
-      if (firstAnswer.includes("doctor")) {
-        return "Great! What is the doctor's name, speciality, and city?";
-      }
-
-      return "Great! What is the name of the hospital and in which city is it located?";
-    }
-
-    if (userMessageCount === 2) {
-      return "Thank you! What base package are we proposing for this client?";
-    }
-
-    if (userMessageCount === 3) {
-      return "Understood. Which platforms should be included? Options are Instagram, Facebook, YouTube, and Google My Business.";
-    }
-
-    if (userMessageCount === 4) {
-      return "Do you need any add-on services? You can mention Meta Ads Management, Google Ads Management, Basic SEO, Advanced SEO, Lead Generation, or Conversion Support.";
-    }
-
-    if (userMessageCount === 5) {
-      return "What is the final agreed pricing for all selected services?";
-    }
-
-    if (userMessageCount === 6) {
-      return "Please confirm if all collected details are correct and complete.";
-    }
-
-    return "All details are collected and confirmed. Please click the Generate Proposal Preview button to create the final proposal.";
+  function getFallbackReply() {
+    return "Please provide proposal details in this format: Hospital/Doctor/Solar | Client name, City | Package details | Platforms | Add-ons | Pricing";
   }
 
   function getClientInfo(currentMessages) {
-    const userMessages = currentMessages.filter(
-      (message) => message.sender === "user"
-    );
+    try {
+      const validatedConversation = getValidatedConversation(currentMessages);
+      const acceptedAnswers = validatedConversation.acceptedAnswers || [];
 
-    const clientType = userMessages[0]?.text || "";
-    const clientDetails = userMessages[1]?.text || "";
-    const clientName = clientDetails.split(",")[0]?.trim() || clientDetails;
+      const clientType =
+        acceptedAnswers.find((item) => item.key === "clientTypeText")?.value ||
+        "";
 
-    return {
-      clientType,
-      clientName,
-    };
+      const clientDetails =
+        acceptedAnswers.find((item) => item.key === "clientDetailsText")
+          ?.value || "";
+
+      const clientName =
+        clientDetails.split(",")[0]?.trim() || clientDetails || "Client";
+
+      return {
+        clientType,
+        clientName,
+      };
+    } catch (error) {
+      console.error(error);
+
+      const userMessages = currentMessages.filter(
+        (message) => message.sender === "user"
+      );
+
+      const clientType = userMessages[0]?.text || "";
+      const clientDetails = userMessages[1]?.text || "";
+      const clientName = clientDetails.split(",")[0]?.trim() || "Client";
+
+      return {
+        clientType,
+        clientName,
+      };
+    }
   }
 
   function escapeHtml(text) {
-    return text
+    return String(text)
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
@@ -109,7 +90,7 @@ function App() {
     }
 
     const safeProposal = escapeHtml(proposal);
-    const logoUrl = `${window.location.origin}/atoms-logo.png`;
+    const logoUrl = `${window.location.origin}/atoms-logo.jpg`;
 
     printableWindow.document.write(`
       <!DOCTYPE html>
@@ -132,6 +113,27 @@ function App() {
               padding: 40px;
               border-radius: 10px;
               box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+              position: relative;
+              overflow: hidden;
+            }
+
+            .document::before {
+              content: "";
+              position: absolute;
+              inset: 0;
+              background-image:
+                linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.92)),
+                url("${logoUrl}");
+              background-repeat: no-repeat;
+              background-position: center;
+              background-size: 420px;
+              opacity: 0.22;
+              pointer-events: none;
+            }
+
+            .content {
+              position: relative;
+              z-index: 1;
             }
 
             .top-bar {
@@ -144,7 +146,7 @@ function App() {
             }
 
             .print-logo {
-              width: 190px;
+              width: 120px;
               height: auto;
               object-fit: contain;
             }
@@ -188,17 +190,19 @@ function App() {
 
         <body>
           <div class="document">
-            <div class="top-bar">
-              <img 
-              src="${logoUrl}" 
-              class="print-logo" 
-              alt="Atoms Digital Solutions Logo" />
-              <button class="print-button" onclick="window.print()">Print / Save as PDF</button>
-            </div>
+            <div class="content">
+              <div class="top-bar">
+                <img 
+                  src="${logoUrl}" 
+                  class="print-logo" 
+                  alt="Atoms Digital Solutions Logo" 
+                />
+                <button class="print-button" onclick="window.print()">Print / Save as PDF</button>
+              </div>
 
-            <pre>${safeProposal}</pre>
+              <pre>${safeProposal}</pre>
+            </div>
           </div>
-          <div class="brand-text">atoms Digital Solutions</div>
         </body>
       </html>
     `);
@@ -222,16 +226,6 @@ function App() {
     setInput("");
     setSaveStatus("");
 
-    if (isFinalConfirmationMessage(userText)) {
-      const finalMessage = {
-        sender: "ai",
-        text: "All details are collected and confirmed. Please click the Generate Proposal Preview button to create the final proposal.",
-      };
-
-      setMessages([...updatedMessages, finalMessage]);
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -248,7 +242,7 @@ function App() {
 
       const fallbackMessage = {
         sender: "ai",
-        text: getFallbackReply(updatedMessages),
+        text: getFallbackReply(),
       };
 
       setMessages([...updatedMessages, fallbackMessage]);
@@ -259,9 +253,26 @@ function App() {
 
   async function generateProposalPreview() {
     setIsGeneratingProposal(true);
-    setSaveStatus("Generating proposal...");
+    setSaveStatus("");
 
     try {
+      const validatedConversation = getValidatedConversation(messages);
+
+      if (!validatedConversation.isComplete) {
+        const aiReply = await getGeminiReply("", messages);
+
+        const aiMessage = {
+          sender: "ai",
+          text: aiReply,
+        };
+
+        setMessages([...messages, aiMessage]);
+        setSaveStatus("Please complete the missing details first.");
+        return;
+      }
+
+      setSaveStatus("Generating proposal...");
+
       let proposalText = "";
 
       try {
@@ -287,9 +298,7 @@ function App() {
       setSaveStatus("Proposal generated and session saved to Supabase ✅");
     } catch (error) {
       console.error(error);
-      setSaveStatus(
-        `Proposal generated, but Supabase save failed: ${error.message}`
-      );
+      setSaveStatus(`Proposal generation failed: ${error.message}`);
     } finally {
       setIsGeneratingProposal(false);
     }
@@ -299,7 +308,7 @@ function App() {
     setMessages([
       {
         sender: "ai",
-        text: "Hi! I am the Proposal Generator Agent. Is this proposal for a hospital or a doctor?",
+        text: initialMessage,
       },
     ]);
     setInput("");
@@ -310,10 +319,46 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-  <div className="text-logo">atoms Digital Solutions</div>
-  <h1>Proposal Generator Agent</h1>
-  <p>AI-powered proposal assistant for Atoms Digital Solutions</p>
-</header>
+        <img
+          src="/atoms-logo.jpg"
+          alt="Atoms Digital Solutions Logo"
+          className="header-logo"
+        />
+
+        <div className="header-content">
+          <h1>Atoms Proposal Generator Agent</h1>
+          <p>
+            AI-assisted proposal creation with fixed logic and smart content
+            generation
+          </p>
+        </div>
+      </header>
+      {isGeneratingProposal && (
+  <div className="loading-overlay">
+    <div className="loading-card">
+      <img
+        src="/atoms-logo.jpg"
+        alt="Atoms Digital Solutions"
+        className="loading-logo"
+      />
+
+      <div className="loading-spinner"></div>
+
+      <h2>Generating Proposal...</h2>
+      <p>
+        Please wait. AI is preparing content blocks and our system is building
+        the final proposal automatically.
+      </p>
+
+      <div className="loading-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+)}
+
       <main className="main">
         <section className="chat-section">
           <h2>Conversation</h2>
@@ -327,7 +372,7 @@ function App() {
                 }
               >
                 <strong>{message.sender === "user" ? "You" : "AI"}:</strong>{" "}
-                {message.text}
+                <span className="message-text">{message.text}</span>
               </div>
             ))}
 
@@ -341,7 +386,7 @@ function App() {
           <div className="input-row">
             <input
               type="text"
-              placeholder="Enter client details here..."
+              placeholder="Example: Hospital | Blossoms Children Hospital, Guntur | Blossoms package - 12 reels, 4 posters | Instagram, Facebook, YouTube, GMB | Meta Ads only | ₹40,000 service fee"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -374,7 +419,7 @@ function App() {
             Create Printable Document
           </button>
 
-          <button className="generate-button" onClick={resetApp}>
+          <button className="generate-button reset-button" onClick={resetApp}>
             Reset Test
           </button>
 
