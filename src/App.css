@@ -173,6 +173,10 @@ body {
   border-left: 4px solid #16a34a;
 }
 
+.message-text {
+  white-space: pre-wrap;
+}
+
 .input-row {
   display: flex;
   gap: 10px;
@@ -209,6 +213,12 @@ body {
   background: linear-gradient(135deg, #092c58, #003f91);
 }
 
+.input-row button:disabled,
+.generate-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .generate-button {
   width: 100%;
   margin-top: 12px;
@@ -216,6 +226,10 @@ body {
 
 .reset-button {
   background: linear-gradient(135deg, #334155, #1e293b);
+}
+
+.reset-button:hover {
+  background: linear-gradient(135deg, #1e293b, #0f172a);
 }
 
 .proposal-box {
@@ -401,5 +415,9 @@ body {
 
   .curve-highlight {
     bottom: 72px;
+  }
+
+  .loading-card {
+    width: calc(100% - 32px);
   }
 }

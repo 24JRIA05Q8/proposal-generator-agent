@@ -8,9 +8,29 @@ import {
 } from "./geminiService";
 import { saveProposalSession } from "./supabaseClient";
 
+const MESSAGE_DELAY_MS = 600;
+const MIN_LOADING_TIME_MS = 800;
+const AI_TIMEOUT_MS = 5000;
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error("AI took too long. Local fallback used.")),
+        ms
+      )
+    ),
+  ]);
+}
+
 function App() {
   const initialMessage =
-    "Hi! I am the Atoms Proposal Generator Agent. You can enter all details in one message or step by step. Example: Hospital | Blossoms Children Hospital, Guntur | Blossoms package - 12 reels, 4 posters | Instagram, Facebook, YouTube, GMB | Meta Ads only | ₹40,000 service fee, ₹10,000 ad budget separate";
+    "Hi! I am the Atoms Proposal Generator Agent. Enter details in one line or step by step.\n\nFormat:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing\n\nExample:\nHospital | Blossoms Children Hospital, Guntur | Blossoms package - 12 reels, 4 posters | Instagram, Facebook, YouTube, GMB | Meta Ads only | ₹40,000 service fee, ₹10,000 ad budget separate";
 
   const [messages, setMessages] = useState([
     {
@@ -26,7 +46,7 @@ function App() {
   const [saveStatus, setSaveStatus] = useState("");
 
   function getFallbackReply() {
-    return "Please provide proposal details in this format: Hospital/Doctor/Solar | Client name, City | Package details | Platforms | Add-ons | Pricing";
+    return "Please provide proposal details in this format:\nHospital/Doctor/Solar | Client name, City | Package details | Platforms | Add-ons | Pricing";
   }
 
   function getClientInfo(currentMessages) {
@@ -67,19 +87,6 @@ function App() {
     }
   }
 
-  function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("AI took too long. Local fallback used.")), ms)
-    ),
-  ]);
-}
-
   function escapeHtml(text) {
     return String(text)
       .replaceAll("&", "&amp;")
@@ -111,22 +118,47 @@ function withTimeout(promise, ms) {
         <head>
           <title>Atoms Digital Solutions Proposal</title>
           <style>
+            * {
+              box-sizing: border-box;
+            }
+
             body {
               font-family: Arial, sans-serif;
               background: #f4f7fb;
               margin: 0;
               padding: 30px;
               color: #111827;
+              position: relative;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+
+            body::before {
+              content: "";
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              width: 520px;
+              height: 520px;
+              transform: translate(-50%, -50%);
+              background-image: url("${logoUrl}");
+              background-repeat: no-repeat;
+              background-position: center;
+              background-size: contain;
+              opacity: 0.07;
+              z-index: 0;
+              pointer-events: none;
             }
 
             .document {
               max-width: 850px;
               margin: auto;
-              background: white;
+              background: rgba(255, 255, 255, 0.96);
               padding: 40px;
               border-radius: 10px;
               box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
               position: relative;
+              z-index: 1;
               overflow: hidden;
             }
 
@@ -139,9 +171,10 @@ function withTimeout(promise, ms) {
                 url("${logoUrl}");
               background-repeat: no-repeat;
               background-position: center;
-              background-size: 420px;
+              background-size: 430px;
               opacity: 0.22;
               pointer-events: none;
+              z-index: 0;
             }
 
             .content {
@@ -158,10 +191,29 @@ function withTimeout(promise, ms) {
               padding-bottom: 15px;
             }
 
+            .brand-block {
+              display: flex;
+              align-items: center;
+              gap: 14px;
+            }
+
             .print-logo {
-              width: 120px;
+              width: 110px;
               height: auto;
               object-fit: contain;
+            }
+
+            .brand-title {
+              margin: 0;
+              color: #0f3d75;
+              font-size: 20px;
+              font-weight: 800;
+            }
+
+            .brand-subtitle {
+              margin: 4px 0 0;
+              color: #475569;
+              font-size: 12px;
             }
 
             .print-button {
@@ -180,6 +232,7 @@ function withTimeout(promise, ms) {
               font-size: 14px;
               line-height: 1.6;
               font-family: Arial, sans-serif;
+              margin: 0;
             }
 
             @media print {
@@ -188,10 +241,16 @@ function withTimeout(promise, ms) {
                 padding: 0;
               }
 
+              body::before {
+                position: fixed;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+
               .document {
                 box-shadow: none;
                 border-radius: 0;
-                padding: 20px;
+                padding: 24px;
               }
 
               .print-button {
@@ -205,12 +264,21 @@ function withTimeout(promise, ms) {
           <div class="document">
             <div class="content">
               <div class="top-bar">
-                <img 
-                  src="${logoUrl}" 
-                  class="print-logo" 
-                  alt="Atoms Digital Solutions Logo" 
-                />
-                <button class="print-button" onclick="window.print()">Print / Save as PDF</button>
+                <div class="brand-block">
+                  <img 
+                    src="${logoUrl}" 
+                    class="print-logo" 
+                    alt="Atoms Digital Solutions Logo" 
+                  />
+                  <div>
+                    <h1 class="brand-title">Atoms Digital Solutions</h1>
+                    <p class="brand-subtitle">Digital Marketing Proposal</p>
+                  </div>
+                </div>
+
+                <button class="print-button" onclick="window.print()">
+                  Print / Save as PDF
+                </button>
               </div>
 
               <pre>${safeProposal}</pre>
@@ -238,36 +306,39 @@ function withTimeout(promise, ms) {
     setMessages(updatedMessages);
     setInput("");
     setSaveStatus("");
-
     setIsLoading(true);
 
     try {
       const aiReply = await getGeminiReply(userText, updatedMessages);
 
+      await wait(MESSAGE_DELAY_MS);
+
       const aiMessage = {
         sender: "ai",
-        text: aiReply,
+        text: aiReply || getFallbackReply(),
       };
 
-      setMessages([...updatedMessages, aiMessage]);
+      setMessages((prevMessages) => [...prevMessages, aiMessage]);
     } catch (error) {
       console.error(error);
+
+      await wait(MESSAGE_DELAY_MS);
 
       const fallbackMessage = {
         sender: "ai",
         text: getFallbackReply(),
       };
 
-      setMessages([...updatedMessages, fallbackMessage]);
+      setMessages((prevMessages) => [...prevMessages, fallbackMessage]);
     } finally {
       setIsLoading(false);
     }
   }
 
- async function generateProposalPreview() {
-  const loadingStartTime = Date.now();
+  async function generateProposalPreview() {
+    const loadingStartTime = Date.now();
 
-  setIsGeneratingProposal(true);
+    setIsGeneratingProposal(true);
     setSaveStatus("");
 
     try {
@@ -276,13 +347,19 @@ function withTimeout(promise, ms) {
       if (!validatedConversation.isComplete) {
         const aiReply = await getGeminiReply("", messages);
 
+        await wait(MESSAGE_DELAY_MS);
+
         const aiMessage = {
           sender: "ai",
-          text: aiReply,
+          text:
+            aiReply ||
+            "Please complete all required details correctly before generating the proposal.",
         };
 
-        setMessages([...messages, aiMessage]);
-        setSaveStatus("Please complete the missing details first.");
+        setMessages((prevMessages) => [...prevMessages, aiMessage]);
+        setSaveStatus(
+          "Please complete the conversation correctly before generating proposal."
+        );
         return;
       }
 
@@ -291,7 +368,10 @@ function withTimeout(promise, ms) {
       let proposalText = "";
 
       try {
-        proposalText = await withTimeout(generateProposalWithGemini(messages), 5000);
+        proposalText = await withTimeout(
+          generateProposalWithGemini(messages),
+          AI_TIMEOUT_MS
+        );
       } catch (error) {
         console.error("Gemini proposal generation failed. Local fallback used.");
         console.error(error);
@@ -300,40 +380,36 @@ function withTimeout(promise, ms) {
 
       setProposal(proposalText);
 
-try {
-  setSaveStatus("Saving session to Supabase...");
+      try {
+        setSaveStatus("Saving session to Supabase...");
 
-  const clientInfo = getClientInfo(messages);
+        const clientInfo = getClientInfo(messages);
 
-  await saveProposalSession({
-    clientName: clientInfo.clientName,
-    clientType: clientInfo.clientType,
-    conversation: messages,
-    proposal: proposalText,
-  });
+        await saveProposalSession({
+          clientName: clientInfo.clientName,
+          clientType: clientInfo.clientType,
+          conversation: messages,
+          proposal: proposalText,
+        });
 
-  setSaveStatus("Proposal generated and session saved to Supabase ✅");
-} catch (saveError) {
-  console.error("Supabase save failed:", saveError);
-
-  setSaveStatus(
-    "Proposal generated successfully ✅ Supabase save failed because env keys are missing or incorrect."
-  );
-}
+        setSaveStatus("Proposal generated and session saved to Supabase ✅");
+      } catch (saveError) {
+        console.error("Supabase save failed:", saveError);
+        setSaveStatus("Proposal generated successfully ✅");
+      }
     } catch (error) {
       console.error(error);
       setSaveStatus(`Proposal generation failed: ${error.message}`);
-    } 
-    finally {
-  const elapsedTime = Date.now() - loadingStartTime;
-  const remainingTime = 800 - elapsedTime;
+    } finally {
+      const elapsedTime = Date.now() - loadingStartTime;
+      const remainingTime = MIN_LOADING_TIME_MS - elapsedTime;
 
-  if (remainingTime > 0) {
-    await new Promise((resolve) => setTimeout(resolve, remainingTime));
-  }
+      if (remainingTime > 0) {
+        await wait(remainingTime);
+      }
 
-  setIsGeneratingProposal(false);
-}
+      setIsGeneratingProposal(false);
+    }
   }
 
   function resetApp() {
@@ -351,6 +427,7 @@ try {
   return (
     <div className="app">
       <div className="curve-highlight"></div>
+
       <header className="header">
         <img
           src="/atoms-logo.jpg"
@@ -361,36 +438,36 @@ try {
         <div className="header-content">
           <h1>Atoms Proposal Generator Agent</h1>
           <p>
-            AI-assisted proposal creation with fixed logic and smart content
-            generation
+            Smart Proposal Builder for Digital Marketing Services
           </p>
         </div>
       </header>
+
       {isGeneratingProposal && (
-  <div className="loading-overlay">
-    <div className="loading-card">
-      <img
-        src="/atoms-logo.jpg"
-        alt="Atoms Digital Solutions"
-        className="loading-logo"
-      />
+        <div className="loading-overlay">
+          <div className="loading-card">
+            <img
+              src="/atoms-logo.jpg"
+              alt="Atoms Digital Solutions"
+              className="loading-logo"
+            />
 
-      <div className="loading-spinner"></div>
+            <div className="loading-spinner"></div>
 
-      <h2>Generating Proposal...</h2>
-      <p>
-        Please wait. AI is preparing content blocks and our system is building
-        the final proposal automatically.
-      </p>
+            <h2>Generating Proposal...</h2>
+            <p>
+              Please wait. AI is preparing content blocks and our system is
+              building the final proposal automatically.
+            </p>
 
-      <div className="loading-dots">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-    </div>
-  </div>
-)}
+            <div className="loading-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="main">
         <section className="chat-section">
@@ -419,7 +496,7 @@ try {
           <div className="input-row">
             <input
               type="text"
-              placeholder="Example: Hospital | Blossoms Children Hospital, Guntur | Blossoms package - 12 reels, 4 posters | Instagram, Facebook, YouTube, GMB | Meta Ads only | ₹40,000 service fee"
+              placeholder="Type details: Type | Name, City | Package | Platforms | Add-ons | Pricing"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -445,15 +522,12 @@ try {
               : "Generate Proposal Preview"}
           </button>
 
-          <button
-            className="generate-button"
-            onClick={createPrintableDocument}
-          >
-            Create Printable Document
+          <button className="generate-button" onClick={createPrintableDocument}>
+            Download / Print Proposal
           </button>
 
           <button className="generate-button reset-button" onClick={resetApp}>
-            Reset Test
+            Start New Proposal
           </button>
 
           {saveStatus && <p className="empty-text">{saveStatus}</p>}
