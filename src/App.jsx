@@ -299,18 +299,27 @@ function withTimeout(promise, ms) {
       }
 
       setProposal(proposalText);
-      setSaveStatus("Saving session to Supabase...");
 
-      const clientInfo = getClientInfo(messages);
+try {
+  setSaveStatus("Saving session to Supabase...");
 
-      await saveProposalSession({
-        clientName: clientInfo.clientName,
-        clientType: clientInfo.clientType,
-        conversation: messages,
-        proposal: proposalText,
-      });
+  const clientInfo = getClientInfo(messages);
 
-      setSaveStatus("Proposal generated and session saved to Supabase ✅");
+  await saveProposalSession({
+    clientName: clientInfo.clientName,
+    clientType: clientInfo.clientType,
+    conversation: messages,
+    proposal: proposalText,
+  });
+
+  setSaveStatus("Proposal generated and session saved to Supabase ✅");
+} catch (saveError) {
+  console.error("Supabase save failed:", saveError);
+
+  setSaveStatus(
+    "Proposal generated successfully ✅ Supabase save failed because env keys are missing or incorrect."
+  );
+}
     } catch (error) {
       console.error(error);
       setSaveStatus(`Proposal generation failed: ${error.message}`);
