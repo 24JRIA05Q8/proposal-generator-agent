@@ -97,200 +97,191 @@ function App() {
   }
 
   function createPrintableDocument() {
-    if (!proposal.trim()) {
-      alert("Please generate the proposal preview first.");
-      return;
-    }
+  if (!proposal.trim()) {
+    alert("Please generate the proposal preview first.");
+    return;
+  }
 
-    const printableWindow = window.open("", "_blank");
+  const printableWindow = window.open("", "_blank");
 
-    if (!printableWindow) {
-      alert("Popup blocked. Please allow popups for this site.");
-      return;
-    }
+  if (!printableWindow) {
+    alert("Popup blocked. Please allow popups for this site.");
+    return;
+  }
 
-    const safeProposal = escapeHtml(proposal);
-    const logoUrl = `${window.location.origin}/atoms-logo.jpg`;
+  const safeProposal = escapeHtml(proposal);
+  const logoUrl = `${window.location.origin}/atoms-logo.jpg`;
 
-    printableWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Atoms Digital Solutions Proposal</title>
-          <style>
-            * {
-              box-sizing: border-box;
+  printableWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Atoms Digital Solutions Proposal</title>
+        <style>
+          * {
+            box-sizing: border-box;
+          }
+
+          body {
+            font-family: Arial, sans-serif;
+            background: white;
+            margin: 0;
+            padding: 30px;
+            color: #111827;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          .watermark-logo {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 620px;
+            height: 620px;
+            object-fit: contain;
+            transform: translate(-50%, -50%);
+            opacity: 0.10;
+            z-index: 0;
+            pointer-events: none;
+          }
+
+          .document {
+            max-width: 850px;
+            margin: auto;
+            background: transparent;
+            padding: 40px;
+            position: relative;
+            z-index: 1;
+          }
+
+          .content {
+            position: relative;
+            z-index: 2;
+          }
+
+          .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #0f3d75;
+            padding-bottom: 15px;
+          }
+
+          .brand-block {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+          }
+
+          .print-logo {
+            width: 110px;
+            height: auto;
+            object-fit: contain;
+          }
+
+          .brand-title {
+            margin: 0;
+            color: #0f3d75;
+            font-size: 20px;
+            font-weight: 800;
+          }
+
+          .brand-subtitle {
+            margin: 4px 0 0;
+            color: #475569;
+            font-size: 12px;
+          }
+
+          .print-button {
+            background: #0f3d75;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+          }
+
+          pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 14px;
+            line-height: 1.6;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            position: relative;
+            z-index: 2;
+          }
+
+          @media print {
+            body {
+              background: white;
+              padding: 0;
             }
 
-            body {
-              font-family: Arial, sans-serif;
-              background: #f4f7fb;
-              margin: 0;
-              padding: 30px;
-              color: #111827;
-              position: relative;
+            .watermark-logo {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              width: 620px;
+              height: 620px;
+              opacity: 0.12;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
 
-            body::before {
-              content: "";
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              width: 520px;
-              height: 520px;
-              transform: translate(-50%, -50%);
-              background-image: url("${logoUrl}");
-              background-repeat: no-repeat;
-              background-position: center;
-              background-size: contain;
-              opacity: 0.07;
-              z-index: 0;
-              pointer-events: none;
-            }
-
             .document {
-              max-width: 850px;
-              margin: auto;
-              background: rgba(255, 255, 255, 0.96);
-              padding: 40px;
-              border-radius: 10px;
-              box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
-              position: relative;
-              z-index: 1;
-              overflow: hidden;
-            }
-
-            .document::before {
-              content: "";
-              position: absolute;
-              inset: 0;
-              background-image:
-                linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.92)),
-                url("${logoUrl}");
-              background-repeat: no-repeat;
-              background-position: center;
-              background-size: 430px;
-              opacity: 0.22;
-              pointer-events: none;
-              z-index: 0;
-            }
-
-            .content {
-              position: relative;
-              z-index: 1;
-            }
-
-            .top-bar {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 20px;
-              border-bottom: 2px solid #0f3d75;
-              padding-bottom: 15px;
-            }
-
-            .brand-block {
-              display: flex;
-              align-items: center;
-              gap: 14px;
-            }
-
-            .print-logo {
-              width: 110px;
-              height: auto;
-              object-fit: contain;
-            }
-
-            .brand-title {
-              margin: 0;
-              color: #0f3d75;
-              font-size: 20px;
-              font-weight: 800;
-            }
-
-            .brand-subtitle {
-              margin: 4px 0 0;
-              color: #475569;
-              font-size: 12px;
+              padding: 24px;
             }
 
             .print-button {
-              background: #0f3d75;
-              color: white;
-              border: none;
-              padding: 10px 16px;
-              border-radius: 6px;
-              cursor: pointer;
-              font-weight: bold;
+              display: none;
             }
 
-            pre {
-              white-space: pre-wrap;
-              word-wrap: break-word;
-              font-size: 14px;
-              line-height: 1.6;
-              font-family: Arial, sans-serif;
-              margin: 0;
+            @page {
+              margin: 14mm;
             }
+          }
+        </style>
+      </head>
 
-            @media print {
-              body {
-                background: white;
-                padding: 0;
-              }
+      <body>
+        <img 
+          src="${logoUrl}" 
+          class="watermark-logo" 
+          alt="Atoms Watermark" 
+        />
 
-              body::before {
-                position: fixed;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-
-              .document {
-                box-shadow: none;
-                border-radius: 0;
-                padding: 24px;
-              }
-
-              .print-button {
-                display: none;
-              }
-            }
-          </style>
-        </head>
-
-        <body>
-          <div class="document">
-            <div class="content">
-              <div class="top-bar">
-                <div class="brand-block">
-                  <img 
-                    src="${logoUrl}" 
-                    class="print-logo" 
-                    alt="Atoms Digital Solutions Logo" 
-                  />
-                  <div>
-                    <h1 class="brand-title">Atoms Digital Solutions</h1>
-                    <p class="brand-subtitle">Digital Marketing Proposal</p>
-                  </div>
+        <div class="document">
+          <div class="content">
+            <div class="top-bar">
+              <div class="brand-block">
+                <img 
+                  src="${logoUrl}" 
+                  class="print-logo" 
+                  alt="Atoms Digital Solutions Logo" 
+                />
+                <div>
+                  <h1 class="brand-title">Atoms Digital Solutions</h1>
+                  <p class="brand-subtitle">Digital Marketing Proposal</p>
                 </div>
-
-                <button class="print-button" onclick="window.print()">
-                  Print / Save as PDF
-                </button>
               </div>
 
-              <pre>${safeProposal}</pre>
+              <button class="print-button" onclick="window.print()">
+                Print / Save as PDF
+              </button>
             </div>
+
+            <pre>${safeProposal}</pre>
           </div>
-        </body>
-      </html>
-    `);
+        </div>
+      </body>
+    </html>
+  `);
 
-    printableWindow.document.close();
-  }
-
+  printableWindow.document.close();
+}
   async function handleSend() {
     if (!input.trim()) return;
 
