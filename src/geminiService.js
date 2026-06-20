@@ -416,11 +416,24 @@ function isValidPricing(text) {
   if (isBadInput(value)) return false;
   if (isGenericOnly(value)) return false;
 
-  const hasMoney =
+  const hasLargeNumber = /\b\d{4,}\b/.test(value);
+
+  const hasShortMoney =
+    /\b\d+(\.\d+)?\s*k\b/.test(value) ||
+    /\b\d+(\.\d+)?\s*(l|lac|lakh)\b/.test(value);
+
+  const hasMoneyWord =
     value.includes("₹") ||
     value.includes("rs") ||
+    value.includes("inr") ||
     value.includes("rupee") ||
-    /\b\d{4,}\b/.test(value);
+    value.includes("fee") ||
+    value.includes("budget") ||
+    value.includes("gst") ||
+    value.includes("price") ||
+    value.includes("pricing") ||
+    value.includes("amount") ||
+    value.includes("charge");
 
   const hasPricingKeyword =
     value.includes("pricing") ||
@@ -433,14 +446,29 @@ function isValidPricing(text) {
     value.includes("/month") ||
     value.includes("monthly") ||
     value.includes("separate") ||
-    value.includes("confirmed");
+    value.includes("confirmed") ||
+    value.includes("fee") ||
+    value.includes("budget") ||
+    value.includes("inr") ||
+    value.includes("rs");
 
   const looksLikeOnlyPackage =
-    (value.includes("package") || value.includes("proposal")) &&
-    !hasPricingKeyword;
+    (value.includes("reels") ||
+      value.includes("posters") ||
+      value.includes("platform") ||
+      value.includes("instagram") ||
+      value.includes("facebook") ||
+      value.includes("youtube")) &&
+    !hasLargeNumber &&
+    !hasShortMoney &&
+    !hasMoneyWord;
 
-  return hasMoney && hasPricingKeyword && !looksLikeOnlyPackage;
+  return (
+    (hasLargeNumber || hasShortMoney || hasMoneyWord || hasPricingKeyword) &&
+    !looksLikeOnlyPackage
+  );
 }
+
 
 function splitUserInputIntoSegments(messages) {
   return getUserMessages(messages)
