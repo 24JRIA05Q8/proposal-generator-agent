@@ -29,6 +29,8 @@ function withTimeout(promise, ms) {
 }
 
 function App() {
+    const initialMessage =
+    "Hi! I am the Atoms Digital Solutions Proposal Assistant.\n\nI can help you create professional digital marketing proposals.\n\nPlease enter details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
 
   const [messages, setMessages] = useState([
     {
@@ -45,6 +47,40 @@ function App() {
 
   function getFallbackReply() {
     return "Please provide proposal details in this format:\nHospital/Doctor/Solar | Client name, City | Package details | Platforms | Add-ons | Pricing";
+  }
+    function getCasualReply(text) {
+    const value = String(text || "").trim().toLowerCase();
+
+    const greetings = [
+      "hi",
+      "hii",
+      "hello",
+      "hey",
+      "hai",
+      "hi buddy",
+      "hello buddy",
+      "good morning",
+      "good afternoon",
+      "good evening",
+    ];
+
+    if (greetings.includes(value)) {
+      return "Hello! I am the Atoms Digital Solutions Proposal Assistant. Please share the proposal details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
+    }
+
+    if (value.includes("thank")) {
+      return "You're welcome! Atoms Digital Solutions team is happy to help you create professional proposals.";
+    }
+
+    if (
+      value.includes("who are you") ||
+      value.includes("what can you do") ||
+      value.includes("help")
+    ) {
+      return "I am the Atoms Digital Solutions Proposal Assistant. I can help you prepare digital marketing proposals for hospitals, doctors, solar businesses, and other clients.";
+    }
+
+    return "";
   }
 
   function getClientInfo(currentMessages) {
@@ -354,7 +390,7 @@ const companyAddress =
 
   printableWindow.document.close();
 }
-  async function handleSend() {
+   async function handleSend() {
     if (!input.trim()) return;
 
     const userText = input.trim();
@@ -363,6 +399,56 @@ const companyAddress =
       sender: "user",
       text: userText,
     };
+
+    const updatedMessages = [...messages, userMessage];
+
+    setMessages(updatedMessages);
+    setInput("");
+    setSaveStatus("");
+    setIsLoading(true);
+
+    try {
+      const casualReply = getCasualReply(userText);
+
+      if (casualReply) {
+        await wait(MESSAGE_DELAY_MS);
+
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            sender: "ai",
+            text: casualReply,
+          },
+        ]);
+
+        return;
+      }
+
+      const aiReply = await getGeminiReply(userText, updatedMessages);
+
+      await wait(MESSAGE_DELAY_MS);
+
+      const aiMessage = {
+        sender: "ai",
+        text: aiReply || getFallbackReply(),
+      };
+
+      setMessages((prevMessages) => [...prevMessages, aiMessage]);
+    } catch (error) {
+      console.error(error);
+
+      await wait(MESSAGE_DELAY_MS);
+
+      const fallbackMessage = {
+        sender: "ai",
+        text: getFallbackReply(),
+      };
+
+      setMessages((prevMessages) => [...prevMessages, fallbackMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
     const updatedMessages = [...messages, userMessage];
 
