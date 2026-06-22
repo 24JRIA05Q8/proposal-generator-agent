@@ -114,12 +114,6 @@ const generatedDateTime = new Date().toLocaleString("en-IN", {
   dateStyle: "medium",
   timeStyle: "short",
 });
-
-  const generatedDateTime = new Date().toLocaleString("en-IN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
   const companyEmail = "atomsdigitalsolutions.com";
 const companyPhone = "73311 53737";
 const companyAddress =
