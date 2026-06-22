@@ -112,6 +112,11 @@ function App() {
   const safeProposal = escapeHtml(proposal);
   const logoUrl = `${window.location.origin}/atoms-logo.jpg`;
 
+  const generatedDateTime = new Date().toLocaleString("en-IN", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
   const companyEmail = "atomsdigitalsolutions.com";
 const companyPhone = "73311 53737";
 const companyAddress =
@@ -172,6 +177,12 @@ const companyAddress =
             border-bottom: 2px solid #0f3d75;
             padding-bottom: 15px;
           }
+            .generated-time {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
 
           .brand-block {
             display: flex;
@@ -283,6 +294,9 @@ const companyAddress =
         <div class="document">
           <div class="content">
             <div class="top-bar">
+            <div class="generated-time">
+  Generated on: ${generatedDateTime}
+</div>
               <div class="brand-block">
                 <img 
                   src="${logoUrl}" 
