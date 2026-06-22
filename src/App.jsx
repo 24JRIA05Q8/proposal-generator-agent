@@ -112,6 +112,11 @@ function App() {
   const safeProposal = escapeHtml(proposal);
   const logoUrl = `${window.location.origin}/atoms-logo.jpg`;
 
+const generatedDateTime = new Date().toLocaleString("en-IN", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
   const generatedDateTime = new Date().toLocaleString("en-IN", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -141,6 +146,30 @@ const companyAddress =
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
+            .pdf-footer {
+  display: none;
+}
+
+@media print {
+  .pdf-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    bottom: 6mm;
+    left: 14mm;
+    right: 14mm;
+    color: #475569;
+    font-size: 11px;
+    border-top: 1px solid #cbd5e1;
+    padding-top: 6px;
+    z-index: 999;
+  }
+
+  .page-number::after {
+    content: "Page " counter(page);
+  }
+}
 
           .watermark-logo {
             position: fixed;
@@ -290,6 +319,10 @@ const companyAddress =
           class="watermark-logo" 
           alt="Atoms Watermark" 
         />
+        <div class="pdf-footer">
+  <span>Generated on: ${generatedDateTime}</span>
+  <span class="page-number"></span>
+</div>
 
         <div class="document">
           <div class="content">
