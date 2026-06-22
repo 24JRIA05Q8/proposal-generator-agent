@@ -29,8 +29,6 @@ function withTimeout(promise, ms) {
 }
 
 function App() {
-  const initialMessage =
-    "Hi! I am the Atoms Proposal Generator Agent. Enter details in one line or step by step.\n\nFormat:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing\n\nExample:\nHospital | Blossoms Children Hospital, Guntur | Blossoms package - 12 reels, 4 posters | Instagram, Facebook, YouTube, GMB | Meta Ads only | ₹40,000 service fee, ₹10,000 ad budget separate";
 
   const [messages, setMessages] = useState([
     {
