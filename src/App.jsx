@@ -29,7 +29,7 @@ function withTimeout(promise, ms) {
 }
 
 function App() {
-    const initialMessage =
+  const initialMessage =
     "Hi! I am the Atoms Digital Solutions Proposal Assistant.\n\nI can help you create professional digital marketing proposals.\n\nPlease enter details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
 
   const [messages, setMessages] = useState([
@@ -48,7 +48,8 @@ function App() {
   function getFallbackReply() {
     return "Please provide proposal details in this format:\nHospital/Doctor/Solar | Client name, City | Package details | Platforms | Add-ons | Pricing";
   }
-    function getCasualReply(text) {
+
+  function getCasualReply(text) {
     const value = String(text || "").trim().toLowerCase();
 
     const greetings = [
@@ -65,7 +66,7 @@ function App() {
     ];
 
     if (greetings.includes(value)) {
-      return "Hello! I am the Atoms Digital Solutions Proposal Assistant. Please share the proposal details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
+      return "Hello! I am the Atoms Digital Solutions Proposal Assistant. I can help you create professional digital marketing proposals.\n\nPlease share details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
     }
 
     if (value.includes("thank")) {
@@ -131,188 +132,49 @@ function App() {
   }
 
   function createPrintableDocument() {
-  if (!proposal.trim()) {
-    alert("Please generate the proposal preview first.");
-    return;
-  }
+    if (!proposal.trim()) {
+      alert("Please generate the proposal preview first.");
+      return;
+    }
 
-  const printableWindow = window.open("", "_blank");
+    const printableWindow = window.open("", "_blank");
 
-  if (!printableWindow) {
-    alert("Popup blocked. Please allow popups for this site.");
-    return;
-  }
+    if (!printableWindow) {
+      alert("Popup blocked. Please allow popups for this site.");
+      return;
+    }
 
-  const safeProposal = escapeHtml(proposal);
-  const logoUrl = `${window.location.origin}/atoms-logo.jpg`;
+    const safeProposal = escapeHtml(proposal);
+    const logoUrl = `${window.location.origin}/atoms-logo.jpg`;
 
-const generatedDateTime = new Date().toLocaleString("en-IN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-  const companyEmail = "atomsdigitalsolutions.com";
-const companyPhone = "73311 53737";
-const companyAddress =
-  "Atoms Digital Solutions Private Limited, Flat No. 301, Sri Siva Sankari Nilayam, Gorantla, Guntur - 522034, Andhra Pradesh";
+    const generatedDateTime = new Date().toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
 
-  printableWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Atoms Digital Solutions Proposal</title>
-        <style>
-          * {
-            box-sizing: border-box;
-          }
+    const companyEmail = "atomsdigitalsolutions.com";
+    const companyPhone = "73311 53737";
+    const companyAddress =
+      "Atoms Digital Solutions Private Limited, Flat No. 301, Sri Siva Sankari Nilayam, Gorantla, Guntur - 522034, Andhra Pradesh";
 
-          body {
-            font-family: Arial, sans-serif;
-            background: white;
-            margin: 0;
-            padding: 30px;
-            color: #111827;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-            .pdf-footer {
-  display: none;
-}
+    printableWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Atoms Digital Solutions Proposal</title>
+          <style>
+            * {
+              box-sizing: border-box;
+            }
 
-@media print {
-  .pdf-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: fixed;
-    bottom: 6mm;
-    left: 14mm;
-    right: 14mm;
-    color: #475569;
-    font-size: 11px;
-    border-top: 1px solid #cbd5e1;
-    padding-top: 6px;
-    z-index: 999;
-  }
-
-  .page-number::after {
-    content: "Page " counter(page);
-  }
-}
-
-          .watermark-logo {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            width: 620px;
-            height: 620px;
-            object-fit: contain;
-            transform: translate(-50%, -50%);
-            opacity: 0.10;
-            z-index: 0;
-            pointer-events: none;
-          }
-
-          .document {
-            max-width: 850px;
-            margin: auto;
-            background: transparent;
-            padding: 40px;
-            position: relative;
-            z-index: 1;
-          }
-
-          .content {
-            position: relative;
-            z-index: 2;
-          }
-
-          .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #0f3d75;
-            padding-bottom: 15px;
-          }
-            .generated-time {
-  color: #475569;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: right;
-}
-
-          .brand-block {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-          }
-
-          .print-logo {
-            width: 110px;
-            height: auto;
-            object-fit: contain;
-          }
-
-          .brand-title {
-            margin: 0;
-            color: #0f3d75;
-            font-size: 20px;
-            font-weight: 800;
-          }
-
-          .brand-subtitle {
-            margin: 4px 0 0;
-            color: #475569;
-            font-size: 12px;
-          }
-
-          .print-button {
-            background: #0f3d75;
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-          }
-
-          pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-size: 14px;
-            line-height: 1.6;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            position: relative;
-            z-index: 2;
-          }
-            .contact-footer {
-  margin-top: 36px;
-  padding: 18px 20px;
-  border-top: 2px solid #0f3d75;
-  background: rgba(232, 241, 255, 0.85);
-  border-radius: 10px;
-  position: relative;
-  z-index: 2;
-}
-
-.contact-footer h3 {
-  margin: 0 0 10px;
-  color: #0f3d75;
-  font-size: 18px;
-}
-
-.contact-footer p {
-  margin: 6px 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #111827;
-}
-
-          @media print {
             body {
+              font-family: Arial, sans-serif;
               background: white;
-              padding: 0;
+              margin: 0;
+              padding: 30px;
+              color: #111827;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
 
             .watermark-logo {
@@ -321,76 +183,224 @@ const companyAddress =
               left: 50%;
               width: 620px;
               height: 620px;
-              opacity: 0.12;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
+              object-fit: contain;
+              transform: translate(-50%, -50%);
+              opacity: 0.10;
+              z-index: 0;
+              pointer-events: none;
             }
 
-            .document {
-              padding: 24px;
-            }
-
-            .print-button {
+            .pdf-footer {
               display: none;
             }
 
-            @page {
-              margin: 14mm;
+            .document {
+              max-width: 850px;
+              margin: auto;
+              background: transparent;
+              padding: 40px;
+              position: relative;
+              z-index: 1;
             }
-          }
-        </style>
-      </head>
 
-      <body>
-        <img 
-          src="${logoUrl}" 
-          class="watermark-logo" 
-          alt="Atoms Watermark" 
-        />
-        <div class="pdf-footer">
-  <span>Generated on: ${generatedDateTime}</span>
-  <span class="page-number"></span>
-</div>
+            .content {
+              position: relative;
+              z-index: 2;
+            }
 
-        <div class="document">
-          <div class="content">
-            <div class="top-bar">
-            <div class="generated-time">
-  Generated on: ${generatedDateTime}
-</div>
-              <div class="brand-block">
-                <img 
-                  src="${logoUrl}" 
-                  class="print-logo" 
-                  alt="Atoms Digital Solutions Logo" 
-                />
-                <div>
-                  <h1 class="brand-title">Atoms Digital Solutions</h1>
-                  <p class="brand-subtitle">Digital Marketing Proposal</p>
+            .top-bar {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 14px;
+              margin-bottom: 20px;
+              border-bottom: 2px solid #0f3d75;
+              padding-bottom: 15px;
+            }
+
+            .brand-block {
+              display: flex;
+              align-items: center;
+              gap: 14px;
+            }
+
+            .print-logo {
+              width: 110px;
+              height: auto;
+              object-fit: contain;
+            }
+
+            .brand-title {
+              margin: 0;
+              color: #0f3d75;
+              font-size: 20px;
+              font-weight: 800;
+            }
+
+            .brand-subtitle {
+              margin: 4px 0 0;
+              color: #475569;
+              font-size: 12px;
+            }
+
+            .generated-time {
+              color: #475569;
+              font-size: 12px;
+              font-weight: 600;
+              text-align: right;
+              white-space: nowrap;
+            }
+
+            .print-button {
+              background: #0f3d75;
+              color: white;
+              border: none;
+              padding: 10px 16px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              white-space: nowrap;
+            }
+
+            pre {
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              font-size: 14px;
+              line-height: 1.6;
+              font-family: Arial, sans-serif;
+              margin: 0;
+              position: relative;
+              z-index: 2;
+            }
+
+            .contact-footer {
+              margin-top: 36px;
+              padding: 18px 20px;
+              border-top: 2px solid #0f3d75;
+              background: rgba(232, 241, 255, 0.85);
+              border-radius: 10px;
+              position: relative;
+              z-index: 2;
+            }
+
+            .contact-footer h3 {
+              margin: 0 0 10px;
+              color: #0f3d75;
+              font-size: 18px;
+            }
+
+            .contact-footer p {
+              margin: 6px 0;
+              font-size: 13px;
+              line-height: 1.5;
+              color: #111827;
+            }
+
+            @media print {
+              body {
+                background: white;
+                padding: 0;
+              }
+
+              .watermark-logo {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                width: 620px;
+                height: 620px;
+                opacity: 0.12;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+
+              .document {
+                padding: 24px;
+              }
+
+              .print-button {
+                display: none;
+              }
+
+              .pdf-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                position: fixed;
+                bottom: 6mm;
+                left: 14mm;
+                right: 14mm;
+                color: #475569;
+                font-size: 11px;
+                border-top: 1px solid #cbd5e1;
+                padding-top: 6px;
+                z-index: 999;
+              }
+
+              .page-number::after {
+                content: "Page " counter(page);
+              }
+
+              @page {
+                margin: 14mm;
+              }
+            }
+          </style>
+        </head>
+
+        <body>
+          <img 
+            src="${logoUrl}" 
+            class="watermark-logo" 
+            alt="Atoms Watermark" 
+          />
+
+          <div class="pdf-footer">
+            <span>Generated on: ${generatedDateTime}</span>
+            <span class="page-number"></span>
+          </div>
+
+          <div class="document">
+            <div class="content">
+              <div class="top-bar">
+                <div class="brand-block">
+                  <img 
+                    src="${logoUrl}" 
+                    class="print-logo" 
+                    alt="Atoms Digital Solutions Logo" 
+                  />
+                  <div>
+                    <h1 class="brand-title">Atoms Digital Solutions</h1>
+                    <p class="brand-subtitle">Digital Marketing Proposal</p>
+                  </div>
                 </div>
+
+                <div class="generated-time">
+                  Generated on: ${generatedDateTime}
+                </div>
+
+                <button class="print-button" onclick="window.print()">
+                  Print / Save as PDF
+                </button>
               </div>
 
-              <button class="print-button" onclick="window.print()">
-                Print / Save as PDF
-              </button>
+              <pre>${safeProposal}</pre>
+
+              <div class="contact-footer">
+                <h3>Contact Details</h3>
+                <p><strong>Website / Email:</strong> ${companyEmail}</p>
+                <p><strong>Phone:</strong> ${companyPhone}</p>
+                <p><strong>Address:</strong> ${companyAddress}</p>
+              </div>
             </div>
-
-            <pre>${safeProposal}</pre>
-            <div class="contact-footer">
-  <h3>Contact Details</h3>
-  <p><strong>Website / Email:</strong> ${companyEmail}</p>
-  <p><strong>Phone:</strong> ${companyPhone}</p>
-  <p><strong>Address:</strong> ${companyAddress}</p>
-</div>
           </div>
-        </div>
-      </body>
-    </html>
-  `);
+        </body>
+      </html>
+    `);
 
-  printableWindow.document.close();
-}
-   async function handleSend() {
+    printableWindow.document.close();
+  }
+
+  async function handleSend() {
     if (!input.trim()) return;
 
     const userText = input.trim();
@@ -424,40 +434,6 @@ const companyAddress =
         return;
       }
 
-      const aiReply = await getGeminiReply(userText, updatedMessages);
-
-      await wait(MESSAGE_DELAY_MS);
-
-      const aiMessage = {
-        sender: "ai",
-        text: aiReply || getFallbackReply(),
-      };
-
-      setMessages((prevMessages) => [...prevMessages, aiMessage]);
-    } catch (error) {
-      console.error(error);
-
-      await wait(MESSAGE_DELAY_MS);
-
-      const fallbackMessage = {
-        sender: "ai",
-        text: getFallbackReply(),
-      };
-
-      setMessages((prevMessages) => [...prevMessages, fallbackMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-    const updatedMessages = [...messages, userMessage];
-
-    setMessages(updatedMessages);
-    setInput("");
-    setSaveStatus("");
-    setIsLoading(true);
-
-    try {
       const aiReply = await getGeminiReply(userText, updatedMessages);
 
       await wait(MESSAGE_DELAY_MS);
@@ -586,9 +562,7 @@ const companyAddress =
 
         <div className="header-content">
           <h1>Atoms Proposal Generator Agent</h1>
-          <p>
-            Smart Proposal Builder for Digital Marketing Services
-          </p>
+          <p>Smart Proposal Builder for Digital Marketing Services</p>
         </div>
       </header>
 
@@ -635,17 +609,17 @@ const companyAddress =
               </div>
             ))}
 
-           {isLoading && (
-  <div className="ai-message loading-message">
-    <strong>AI:</strong>{" "}
-    <span>Checking details</span>
-    <span className="typing-loader">
-      <span></span>
-      <span></span>
-      <span></span>
-    </span>
-  </div>
-)}
+            {isLoading && (
+              <div className="ai-message loading-message">
+                <strong>AI:</strong>{" "}
+                <span>Checking details</span>
+                <span className="typing-loader">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="input-row">
