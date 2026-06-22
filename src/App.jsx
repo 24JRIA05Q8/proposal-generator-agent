@@ -218,6 +218,28 @@ const companyAddress =
             position: relative;
             z-index: 2;
           }
+            .contact-footer {
+  margin-top: 36px;
+  padding: 18px 20px;
+  border-top: 2px solid #0f3d75;
+  background: rgba(232, 241, 255, 0.85);
+  border-radius: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.contact-footer h3 {
+  margin: 0 0 10px;
+  color: #0f3d75;
+  font-size: 18px;
+}
+
+.contact-footer p {
+  margin: 6px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #111827;
+}
 
           @media print {
             body {
@@ -279,6 +301,12 @@ const companyAddress =
             </div>
 
             <pre>${safeProposal}</pre>
+            <div class="contact-footer">
+  <h3>Contact Details</h3>
+  <p><strong>Website / Email:</strong> ${companyEmail}</p>
+  <p><strong>Phone:</strong> ${companyPhone}</p>
+  <p><strong>Address:</strong> ${companyAddress}</p>
+</div>
           </div>
         </div>
       </body>
