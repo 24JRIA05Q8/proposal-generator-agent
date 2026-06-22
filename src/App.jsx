@@ -29,8 +29,8 @@ function withTimeout(promise, ms) {
 }
 
 function App() {
-  const initialMessage =
-    "Hi! I am the Atoms Digital Solutions Proposal Assistant.\n\nI can help you create professional digital marketing proposals.\n\nPlease enter details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
+ const initialMessage =
+  "👋 Hi! I am the Atoms Digital Solutions Proposal Assistant.\n\n🤖 I can help you create professional digital marketing proposals.\n\nPlease enter details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
 
   const [messages, setMessages] = useState([
     {
@@ -66,8 +66,8 @@ function App() {
     ];
 
     if (greetings.includes(value)) {
-      return "Hello! I am the Atoms Digital Solutions Proposal Assistant. I can help you create professional digital marketing proposals.\n\nPlease share details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
-    }
+  return "👋 Hello! I am the Atoms Digital Solutions Proposal Assistant.\n\n🤖 I can help you create professional proposals for your clients.\n\nPlease share details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
+}
 
     if (value.includes("thank")) {
       return "You're welcome! Atoms Digital Solutions team is happy to help you create professional proposals.";
@@ -604,7 +604,7 @@ function App() {
                   message.sender === "user" ? "user-message" : "ai-message"
                 }
               >
-                <strong>{message.sender === "user" ? "You" : "AI"}:</strong>{" "}
+                <strong>{message.sender === "user" ? "👤 You" : "🤖 AI"}:</strong>{" "}
                 <span className="message-text">{message.text}</span>
               </div>
             ))}
@@ -612,7 +612,7 @@ function App() {
             {isLoading && (
               <div className="ai-message loading-message">
                 <strong>AI:</strong>{" "}
-                <span>Checking details</span>
+                <span>Checking details</span> ✨
                 <span className="typing-loader">
                   <span></span>
                   <span></span>
