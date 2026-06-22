@@ -112,6 +112,11 @@ function App() {
   const safeProposal = escapeHtml(proposal);
   const logoUrl = `${window.location.origin}/atoms-logo.jpg`;
 
+  const companyEmail = "atomsdigitalsolutions.com";
+const companyPhone = "73311 53737";
+const companyAddress =
+  "Atoms Digital Solutions Private Limited, Flat No. 301, Sri Siva Sankari Nilayam, Gorantla, Guntur - 522034, Andhra Pradesh";
+
   printableWindow.document.write(`
     <!DOCTYPE html>
     <html>
@@ -477,11 +482,17 @@ function App() {
               </div>
             ))}
 
-            {isLoading && (
-              <div className="ai-message">
-                <strong>AI:</strong> Thinking...
-              </div>
-            )}
+           {isLoading && (
+  <div className="ai-message loading-message">
+    <strong>AI:</strong>{" "}
+    <span>Checking details</span>
+    <span className="typing-loader">
+      <span></span>
+      <span></span>
+      <span></span>
+    </span>
+  </div>
+)}
           </div>
 
           <div className="input-row">
