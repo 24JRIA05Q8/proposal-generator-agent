@@ -30,8 +30,8 @@ function withTimeout(promise, ms) {
 }
 
 function App() {
-  const initialMessage =
-    "👋 Hi! I am the Atoms Digital Solutions AI Proposal Assistant.\n\n🤖 You can talk to me naturally. Share client details in any style, ask questions, or give everything in one line.\n\nExample:\nHospital | Blossoms Children Hospital, Guntur | Blossoms package - 12 reels, 4 posters | Instagram, Facebook, YouTube, GMB | Meta Ads only | 40000 service fee, 10000 ad budget separate";
+ const initialMessage =
+  "Hi! I am the Proposal Generator Agent. I will help you collect client details and generate a proposal.\n\nPlease share the client's name, type (Hospital, Doctor, Solar, or Other Business), city, and what services they need — you can tell me everything at once or I'll guide you step by step.";
 
   const [messages, setMessages] = useState([
     {
@@ -475,7 +475,7 @@ function App() {
           <div className="input-row">
             <input
               type="text"
-              placeholder="Chat naturally with AI or share proposal details..."
+              placeholder="Enter client details here..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
