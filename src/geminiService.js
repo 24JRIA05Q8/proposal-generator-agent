@@ -10,10 +10,66 @@ import {
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-const MODEL_NAME = "gemini-2.5-flash";
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function cleanText(text) {
   return text ? String(text).trim() : "";
+}
+
+function getReadableGeminiError(error) {
+  const text = String(error?.message || error || "");
+
+  if (
+    text.includes("503") ||
+    text.includes("UNAVAILABLE") ||
+    text.includes("high demand")
+  ) {
+    return "Gemini AI is busy right now due to high demand. Please try again in a few seconds.";
+  }
+
+  if (text.includes("API key") || text.includes("403") || text.includes("401")) {
+    return "Gemini API key issue. Please check VITE_GEMINI_API_KEY in Vercel environment variables.";
+  }
+
+  return "Gemini AI is temporarily unavailable. Please try again.";
+}
+
+async function generateGeminiText(prompt) {
+  if (!ai) {
+    throw new Error(
+      "Gemini API key is missing. Please add VITE_GEMINI_API_KEY in .env.local or Vercel Environment Variables."
+    );
+  }
+
+  let lastError = null;
+
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+        });
+
+        const text = cleanText(response.text);
+
+        if (text) return text;
+      } catch (error) {
+        lastError = error;
+        console.error(
+          `Gemini failed. Model: ${model}, Attempt: ${attempt}`,
+          error
+        );
+        await sleep(900);
+      }
+    }
+  }
+
+  throw new Error(getReadableGeminiError(lastError));
 }
 
 function getMessageText(message) {
@@ -43,19 +99,6 @@ function recentConversationToText(messages, limit = 12) {
     .join("\n");
 }
 
-function normalizeArray(value) {
-  if (!value) return [];
-
-  if (Array.isArray(value)) {
-    return value.map((item) => cleanText(item)).filter(Boolean);
-  }
-
-  return String(value)
-    .split(/\n|•|,|;/)
-    .map((item) => cleanText(item))
-    .filter(Boolean);
-}
-
 function buildFixedParametersText() {
   return `
 Company Details:
@@ -69,12 +112,12 @@ Company Details:
 Standard Fixed Packages:
 Hospital Growth Package:
 - Monthly Investment: ${STANDARD_PACKAGES.hospitalGrowth.monthlyInvestment}
-- Deliverables: 12 reels, 6 posters, 1 regular shoot, Instagram, Facebook, YouTube, Google My Business
+- Deliverables: 12 reels, 6 posters, 1 regular shoot, Instagram, Facebook, YouTube, Google Business Profile
 - Sections include Content Strategy & Planning, Reel Content Creation, Creative Designing, Social Media Management, Google Presence Management, Shoot Support, Client Support, Performance Observation.
 
 Doctor Personal Branding Package:
 - Monthly Investment: ${STANDARD_PACKAGES.doctorPersonalBranding.monthlyInvestment}
-- Deliverables: 8 reels, 4 posters, Instagram, Facebook, YouTube, Google My Business if applicable
+- Deliverables: 8 reels, 4 posters, Instagram, Facebook, YouTube, Google Business Profile if applicable
 - Sections include Personal Brand Positioning, Content Planning, Reels, Creatives, Social Media Management, GMB, Support and Review.
 
 Solar Digital Marketing Package:
@@ -99,8 +142,10 @@ Add-ons:
 Important Notes:
 Hospital:
 ${FIXED_IMPORTANT_NOTES.hospital.map((item) => `- ${item}`).join("\n")}
+
 Doctor:
 ${FIXED_IMPORTANT_NOTES.doctor.map((item) => `- ${item}`).join("\n")}
+
 Solar:
 ${FIXED_IMPORTANT_NOTES.solar.map((item) => `- ${item}`).join("\n")}
 
@@ -196,19 +241,15 @@ ${PROPOSAL_REFERENCE_CONTEXT}
 
 function assertAiReady() {
   if (!ai) {
-    throw new Error("Gemini API key is missing. Please add VITE_GEMINI_API_KEY in .env.local or Vercel Environment Variables.");
+    throw new Error(
+      "Gemini API key is missing. Please add VITE_GEMINI_API_KEY in .env.local or Vercel Environment Variables."
+    );
   }
 }
 
 async function generateAiText(prompt) {
   assertAiReady();
-
-  const response = await ai.models.generateContent({
-    model: MODEL_NAME,
-    contents: prompt,
-  });
-
-  return cleanText(response.text);
+  return await generateGeminiText(prompt);
 }
 
 export async function getGeminiReply(userInput, messages) {
@@ -230,15 +271,20 @@ Rules for this reply:
 - Do not generate the full final proposal in chat.
 - If the user asks a question like "how many posters", answer from the latest proposal details in the conversation.
 - If details are missing, ask the next most useful question conversationally.
+- If user greets you, greet naturally and continue the proposal conversation.
 - Keep it under 5 lines unless the user asks for more.
 `;
 
   try {
     const reply = await generateAiText(prompt);
-    return reply || "I am here to help you prepare the proposal. Please share the client details or ask me anything about the proposal.";
+
+    return (
+      reply ||
+      "I am here to help you prepare the proposal. Please share the client details or ask me anything about the proposal."
+    );
   } catch (error) {
     console.error("Gemini chatbot reply failed:", error);
-    return `Gemini AI is currently not available: ${error.message}`;
+    return getReadableGeminiError(error);
   }
 }
 
@@ -328,7 +374,9 @@ export function getConversationClientInfo(messages) {
     };
   }
 
-  const clientNameMatch = userText.match(/(?:for|client|hospital|doctor|business)\s*[:\-]?\s*([A-Za-z0-9 .&]+(?:Hospital|Clinic|Doctor|Solar|Solutions|Centre|Center|Dr\.? [A-Za-z .]+)?)/i);
+  const clientNameMatch = userText.match(
+    /(?:for|client|hospital|doctor|business)\s*[:\-]?\s*([A-Za-z0-9 .&]+(?:Hospital|Clinic|Doctor|Solar|Solutions|Centre|Center|Dr\.? [A-Za-z .]+)?)/i
+  );
 
   return {
     clientType: "AI Proposal",
