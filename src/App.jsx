@@ -515,15 +515,35 @@ function App() {
         <section className="proposal-section">
           <h2>Proposal Preview</h2>
 
-          <div className="proposal-box">
-            {proposal ? (
-              <pre>{proposal}</pre>
-            ) : (
-              <p className="empty-text">
-                Gemini AI proposal preview will appear here.
-              </p>
-            )}
-          </div>
+         <div className="proposal-box">
+  {proposal ? (
+    <pre>{proposal}</pre>
+  ) : (
+    <div className="preview-empty-state">
+      <img
+        src="/atoms-logo.jpg"
+        alt="Atoms Digital Solutions"
+        className="preview-empty-logo"
+      />
+
+      <h3 className="preview-empty-title">Proposal Preview Area</h3>
+
+      <p className="preview-empty-desc">
+        Your professional proposal will appear here after the AI collects and understands the client details.
+      </p>
+
+      <div className="preview-steps">
+        <div className="preview-step">💬 Chat with AI</div>
+        <div className="preview-step">📌 Share client details</div>
+        <div className="preview-step">✨ Generate proposal</div>
+      </div>
+
+      <p className="preview-note">
+        Click <strong>Generate Proposal Preview</strong> after sharing the client information.
+      </p>
+    </div>
+  )}
+</div>
         </section>
       </main>
     </div>
