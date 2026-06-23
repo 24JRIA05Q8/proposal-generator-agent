@@ -417,3 +417,25 @@ export const PROPOSAL_TYPES = {
   doctor: "Doctor Personal Branding Proposal",
   solar: "Solar Digital Marketing Proposal",
 };
+
+export const FIXED_PARAMETERS = [
+  "Company details",
+  "Standard packages",
+  "Service sections",
+  "Important notes",
+  "Content themes",
+  "Add-on services",
+  "Proposal structure",
+  "PDF contact details",
+];
+
+export const CUSTOM_PARAMETERS = [
+  "Client type",
+  "Client name",
+  "City",
+  "Package input",
+  "Platforms input",
+  "Add-ons input",
+  "Pricing input",
+];
+

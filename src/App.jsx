@@ -7,6 +7,7 @@ import {
   getValidatedConversation,
 } from "./geminiService";
 import { saveProposalSession } from "./supabaseClient";
+import { COMPANY_DETAILS } from "./proposalConfig";
 
 const MESSAGE_DELAY_MS = 600;
 const MIN_LOADING_TIME_MS = 800;
@@ -29,8 +30,8 @@ function withTimeout(promise, ms) {
 }
 
 function App() {
- const initialMessage =
-  "👋 Hi! I am the Atoms Digital Solutions Proposal Assistant.\n\n🤖 I can help you create professional digital marketing proposals.\n\nPlease enter details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
+  const initialMessage =
+    "👋 Hi! I am the Atoms Digital Solutions Proposal Assistant.\n\n🤖 I can help you create professional digital marketing proposals.\n\nPlease enter details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
 
   const [messages, setMessages] = useState([
     {
@@ -46,42 +47,7 @@ function App() {
   const [saveStatus, setSaveStatus] = useState("");
 
   function getFallbackReply() {
-    return "Please provide proposal details in this format:\nHospital/Doctor/Solar | Client name, City | Package details | Platforms | Add-ons | Pricing";
-  }
-
-  function getCasualReply(text) {
-    const value = String(text || "").trim().toLowerCase();
-
-    const greetings = [
-      "hi",
-      "hii",
-      "hello",
-      "hey",
-      "hai",
-      "hi buddy",
-      "hello buddy",
-      "good morning",
-      "good afternoon",
-      "good evening",
-    ];
-
-    if (greetings.includes(value)) {
-  return "👋 Hello! I am the Atoms Digital Solutions Proposal Assistant.\n\n🤖 I can help you create professional proposals for your clients.\n\nPlease share details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
-}
-
-    if (value.includes("thank")) {
-      return "You're welcome! Atoms Digital Solutions team is happy to help you create professional proposals.";
-    }
-
-    if (
-      value.includes("who are you") ||
-      value.includes("what can you do") ||
-      value.includes("help")
-    ) {
-      return "I am the Atoms Digital Solutions Proposal Assistant. I can help you prepare digital marketing proposals for hospitals, doctors, solar businesses, and other clients.";
-    }
-
-    return "";
+    return "I am the Atoms Digital Solutions Proposal Assistant. Please share proposal details in this format:\nHospital/Doctor/Solar | Client name, City | Package details | Platforms | Add-ons | Pricing";
   }
 
   function getClientInfo(currentMessages) {
@@ -152,16 +118,16 @@ function App() {
       timeStyle: "short",
     });
 
-    const companyEmail = "atomsdigitalsolutions.com";
-    const companyPhone = "73311 53737";
-    const companyAddress =
-      "Atoms Digital Solutions Private Limited, Flat No. 301, Sri Siva Sankari Nilayam, Gorantla, Guntur - 522034, Andhra Pradesh";
+    const companyEmail = COMPANY_DETAILS.email;
+    const companyPhone = COMPANY_DETAILS.phone;
+    const companyAddress = COMPANY_DETAILS.address;
+    const companyName = COMPANY_DETAILS.shortName;
 
     printableWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Atoms Digital Solutions Proposal</title>
+          <title>${companyName} Proposal</title>
           <style>
             * {
               box-sizing: border-box;
@@ -177,19 +143,6 @@ function App() {
               print-color-adjust: exact;
             }
 
-            .watermark-logo {
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              width: 620px;
-              height: 620px;
-              object-fit: contain;
-              transform: translate(-50%, -50%);
-              opacity: 0.10;
-              z-index: 0;
-              pointer-events: none;
-            }
-
             .pdf-footer {
               display: none;
             }
@@ -197,7 +150,7 @@ function App() {
             .document {
               max-width: 850px;
               margin: auto;
-              background: transparent;
+              background: white;
               padding: 40px;
               position: relative;
               z-index: 1;
@@ -302,17 +255,6 @@ function App() {
                 padding: 0;
               }
 
-              .watermark-logo {
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                width: 620px;
-                height: 620px;
-                opacity: 0.12;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-
               .document {
                 padding: 24px;
               }
@@ -348,12 +290,6 @@ function App() {
         </head>
 
         <body>
-          <img 
-            src="${logoUrl}" 
-            class="watermark-logo" 
-            alt="Atoms Watermark" 
-          />
-
           <div class="pdf-footer">
             <span>Generated on: ${generatedDateTime}</span>
             <span class="page-number"></span>
@@ -366,10 +302,10 @@ function App() {
                   <img 
                     src="${logoUrl}" 
                     class="print-logo" 
-                    alt="Atoms Digital Solutions Logo" 
+                    alt="${companyName} Logo" 
                   />
                   <div>
-                    <h1 class="brand-title">Atoms Digital Solutions</h1>
+                    <h1 class="brand-title">${companyName}</h1>
                     <p class="brand-subtitle">Digital Marketing Proposal</p>
                   </div>
                 </div>
@@ -387,7 +323,7 @@ function App() {
 
               <div class="contact-footer">
                 <h3>Contact Details</h3>
-                <p><strong>Website / Email:</strong> ${companyEmail}</p>
+                <p><strong>Email:</strong> ${companyEmail}</p>
                 <p><strong>Phone:</strong> ${companyPhone}</p>
                 <p><strong>Address:</strong> ${companyAddress}</p>
               </div>
@@ -418,22 +354,6 @@ function App() {
     setIsLoading(true);
 
     try {
-      const casualReply = getCasualReply(userText);
-
-      if (casualReply) {
-        await wait(MESSAGE_DELAY_MS);
-
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          {
-            sender: "ai",
-            text: casualReply,
-          },
-        ]);
-
-        return;
-      }
-
       const aiReply = await getGeminiReply(userText, updatedMessages);
 
       await wait(MESSAGE_DELAY_MS);
@@ -611,7 +531,7 @@ function App() {
 
             {isLoading && (
               <div className="ai-message loading-message">
-                <strong>AI:</strong>{" "}
+                <strong>🤖 AI:</strong>{" "}
                 <span>Checking details</span> ✨
                 <span className="typing-loader">
                   <span></span>

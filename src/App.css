@@ -19,22 +19,6 @@ body {
     linear-gradient(135deg, #f8fbff 0%, #edf4ff 45%, #ffffff 100%);
 }
 
-/* Bright Atoms logo watermark */
-.app::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.66)),
-    url("/atoms-logo.jpg");
-  background-repeat: no-repeat;
-  background-position: center 57%;
-  background-size: 700px;
-  opacity: 0.42;
-  pointer-events: none;
-  z-index: 0;
-}
-
 /* Bottom blue professional curve */
 .app::after {
   content: "";
@@ -446,10 +430,6 @@ body {
 
   .input-row {
     flex-direction: column;
-  }
-
-  .app::before {
-    background-size: 430px;
   }
 
   .app::after {

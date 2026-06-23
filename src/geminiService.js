@@ -1475,6 +1475,7 @@ Professional, simple, industry-specific, and similar to Atoms Digital Solutions 
     conclusion: cleanText(parsed.conclusion),
   };
 }
+
 function getCurrentQuestion(validatedConversation) {
   if (validatedConversation.hasInvalidPlatform) {
     return "TikTok/Snapchat/Telegram are not valid platforms for this proposal. Please provide valid platforms only: Instagram, Facebook, YouTube, Google Business Profile, Website, or WhatsApp.";
@@ -1491,51 +1492,191 @@ function getCurrentQuestion(validatedConversation) {
 
   if (missingField === "clientDetailsText") {
     if (clientType === "doctor") {
-      return "Please provide only doctor name, specialty, and city. Example: Dr. Prathyusha, Gynecologist, Vijayawada";
+      return "Please provide doctor name, specialty, and city. Format: Doctor name, Specialty, City";
     }
 
     if (clientType === "solar") {
-      return "Please provide only solar business name and city. Example: Solar Energy Solutions, Guntur";
+      return "Please provide solar business name and city. Format: Business Name, City";
     }
 
-    return "Please provide only hospital name and city. Example: Blossoms Children Hospital, Guntur";
+    return "Please provide hospital name and city. Format: Hospital Name, City";
   }
 
   if (missingField === "packageText") {
     if (clientType === "doctor") {
-      return "Please provide only package type. Example: Content Creation Package - 12 reels, 4 posters, ₹40,000/month";
+      return "Please provide package type and deliverables, like content creation, reels, posters, and monthly fee.";
     }
 
     if (clientType === "solar") {
-      return "Please provide only services/package. Example: GMB, Social Media, Meta Ads, Reporting";
+      return "Please provide services/package, like GMB, Social Media, Meta Ads, and Reporting.";
     }
 
-    return "Please provide only proposal/package type. Example: Blossoms package - 12 reels, 4 posters";
+    return "Please provide proposal/package type and deliverables, like reels, posters, SEO, GMB, or ads.";
   }
 
   if (missingField === "platformsText") {
-    return "Please provide only platforms. Example: Instagram, Facebook, YouTube, Google Business Profile";
+    return "Please provide platforms only: Instagram, Facebook, YouTube, Google Business Profile, Website, or WhatsApp.";
   }
 
   if (missingField === "addOnsText") {
-    return "Please provide only add-ons. Example: Meta Ads only, WhatsApp Marketing, Basic SEO, or No add-ons";
+    return "Please provide add-ons, like Meta Ads only, WhatsApp Marketing, Basic SEO, or No add-ons.";
   }
 
   if (missingField === "pricingText") {
-    return "Please provide only pricing. Example: ₹40,000 service fee, ₹10,000 ad budget separate";
+    return "Please provide pricing. Rupee symbol is optional. You can use ₹, Rs, INR, or only numbers.";
   }
 
   return "All required details are collected. Please click Generate Proposal Preview.";
 }
 
+function isProposalDataContext(userInput, validatedConversation) {
+  const value = cleanText(userInput).toLowerCase();
+
+  if (!value) return true;
+
+  if (
+    validatedConversation.hasInvalidPlatform ||
+    validatedConversation.acceptedAnswers.length > 0
+  ) {
+    return true;
+  }
+
+  const proposalWords = [
+    "hospital",
+    "doctor",
+    "dr.",
+    "solar",
+    "business",
+    "client",
+    "package",
+    "proposal",
+    "reel",
+    "poster",
+    "platform",
+    "instagram",
+    "facebook",
+    "youtube",
+    "gmb",
+    "google business",
+    "website",
+    "whatsapp",
+    "addon",
+    "add-on",
+    "ads",
+    "seo",
+    "pricing",
+    "price",
+    "fee",
+    "budget",
+    "gst",
+    "rs",
+    "inr",
+    "₹",
+  ];
+
+  return proposalWords.some((word) => value.includes(word));
+}
+
+function getLocalAssistantReply(userInput) {
+  const value = cleanText(userInput).toLowerCase();
+
+  if (!value) {
+    return "Hello! I am the Atoms Digital Solutions Proposal Assistant. Share proposal details and I will guide you step by step.";
+  }
+
+  if (
+    value.includes("hi") ||
+    value.includes("hello") ||
+    value.includes("hey") ||
+    value.includes("good morning") ||
+    value.includes("good afternoon") ||
+    value.includes("good evening")
+  ) {
+    return "Hello! I am the Atoms Digital Solutions Proposal Assistant. I can help you prepare professional digital marketing proposals. You can share details in one line or step by step.";
+  }
+
+  if (value.includes("thank")) {
+    return "You're welcome. Atoms Digital Solutions is happy to help you create professional proposals.";
+  }
+
+  if (
+    value.includes("who are you") ||
+    value.includes("what can you do") ||
+    value.includes("help")
+  ) {
+    return "I am the Atoms Digital Solutions Proposal Assistant. I can answer basic questions, guide you through proposal data collection, and help generate structured digital marketing proposals.";
+  }
+
+  return "I am here to help as the Atoms Digital Solutions Proposal Assistant. For proposal creation, please share client type, client name, city, package, platforms, add-ons, and pricing.";
+}
+
+async function generateAssistantChatReply(userInput, messages) {
+  if (!ai) {
+    return getLocalAssistantReply(userInput);
+  }
+
+  const recentConversation = messages
+    .slice(-8)
+    .map((message) => {
+      const role = message.sender === "user" ? "User" : "Assistant";
+      return `${role}: ${getMessageText(message)}`;
+    })
+    .join("\n");
+
+  const prompt = `
+You are the Atoms Digital Solutions Proposal Assistant.
+
+Your role:
+- Behave like a helpful AI chatbot for Atoms Digital Solutions.
+- Answer casual messages naturally.
+- Help the user understand proposal requirements.
+- Guide the user to provide proposal details when needed.
+- Do not generate the final proposal in chat.
+- Do not invent pricing or services.
+- Keep replies short, professional, and friendly.
+
+Required proposal data:
+1. Client Type
+2. Client Name and City
+3. Package / Services
+4. Platforms
+5. Add-ons
+6. Pricing
+
+Recent conversation:
+${recentConversation}
+
+Current user message:
+${userInput}
+
+Reply as Atoms Digital Solutions Proposal Assistant.
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    return cleanText(response.text) || getLocalAssistantReply(userInput);
+  } catch (error) {
+    console.error("Assistant chat reply failed:", error);
+    return getLocalAssistantReply(userInput);
+  }
+}
+
 export async function getGeminiReply(userInput, messages) {
   const validatedConversation = getValidatedConversation(messages);
 
-  if (!validatedConversation.isComplete) {
-    return getCurrentQuestion(validatedConversation);
+  if (isProposalDataContext(userInput, validatedConversation)) {
+    if (!validatedConversation.isComplete) {
+      return getCurrentQuestion(validatedConversation);
+    }
+
+    return "All details are collected. Please click Generate Proposal Preview to create the final proposal.";
   }
 
-  return "All details are collected. Please click Generate Proposal Preview to create the final proposal.";
+  return generateAssistantChatReply(userInput, messages);
 }
 
 export async function generateProposalWithGemini(messages) {
