@@ -213,52 +213,46 @@ body {
   padding: 24px 18px;
   border-radius: 10px;
   background: #ffffff;
-  border: 1px dashed #b7c7dd;
 }
 
 .preview-empty-logo {
-  width: 68px;
-  height: 68px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
   background: white;
-  padding: 8px;
-  border-radius: 14px;
+  padding: 6px;
+  border-radius: 12px;
   border: 1px solid #dbe3ef;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .preview-empty-title {
   margin: 0;
   color: #0f3d75;
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 800;
 }
 
 .preview-empty-desc {
-  max-width: 390px;
+  max-width: 360px;
   margin: 10px auto 16px;
-  color: #475569;
+  color: #64748b;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .preview-steps {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  width: 100%;
-  max-width: 310px;
-  margin: 4px auto 16px;
+  display: none;
 }
 
 .preview-step {
-  background: #f8fafc;
-  color: #0f3d75;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 14px;
-  font-weight: 700;
+  display: none;
+}
+
+.preview-note {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
 }
 
 .preview-note {
