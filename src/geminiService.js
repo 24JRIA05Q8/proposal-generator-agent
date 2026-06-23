@@ -10,12 +10,37 @@ import {
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
+const MODEL_NAME = "gemini-2.5-flash";
+
 function cleanText(text) {
   return text ? String(text).trim() : "";
 }
 
+function getMessageText(message) {
+  return cleanText(message?.text || message?.content || message?.message || "");
+}
+
 function getUserMessages(messages) {
-  return messages.filter((message) => message.sender === "user");
+  return (messages || []).filter((message) => message.sender === "user");
+}
+
+function conversationToText(messages) {
+  return (messages || [])
+    .map((message) => {
+      const role = message.sender === "user" ? "User" : "Assistant";
+      return `${role}: ${getMessageText(message)}`;
+    })
+    .join("\n");
+}
+
+function recentConversationToText(messages, limit = 12) {
+  return (messages || [])
+    .slice(-limit)
+    .map((message) => {
+      const role = message.sender === "user" ? "User" : "Assistant";
+      return `${role}: ${getMessageText(message)}`;
+    })
+    .join("\n");
 }
 
 function normalizeArray(value) {
@@ -31,1664 +56,282 @@ function normalizeArray(value) {
     .filter(Boolean);
 }
 
-function buildBulletList(items) {
-  const list = normalizeArray(items);
-
-  if (list.length === 0) return "";
-
-  return list.map((item) => `• ${item}`).join("\n");
-}
-
-function detectClientType(text) {
-  const value = text.toLowerCase();
-
-  if (value.includes("doctor") || value.includes("dr.")) return "doctor";
-  if (value.includes("solar")) return "solar";
-  if (value.includes("hospital")) return "hospital";
-
-  return "hospital";
-}
-
-function getClientNameAndCity(clientDetails) {
-  const parts = clientDetails
-    .split(",")
-    .map((part) => cleanText(part))
-    .filter(Boolean);
-
-  const clientName = parts[0] || "Client";
-  const city = parts.length > 1 ? parts[parts.length - 1] : "";
-  const specialty =
-    parts.length > 2 ? parts.slice(1, parts.length - 1).join(", ") : "";
-
-  return { clientName, city, specialty };
-}
-
-function readNumber(text, keyword, fallbackValue) {
-  const pattern = new RegExp(`(\\d+)\\s*(?:high-quality\\s*)?${keyword}`, "i");
-  const match = text.match(pattern);
-
-  if (match && match[1]) return match[1];
-
-  return fallbackValue;
-}
-
-function readAdBudget(text, fallbackValue = "") {
-  const match = text.match(
-    /ad budget[^₹0-9]*(?:₹)?\s*([\d,]+(?:\s*[–-]\s*[\d,]+)?)/i
-  );
-
-  if (match && match[1]) {
-    return `₹${match[1]} per month`;
-  }
-
-  return fallbackValue;
-}
-
-function detectHospitalVariant(data) {
-  const value = `${data.clientName} ${data.city} ${data.packageText} ${data.platformsText} ${data.addOnsText} ${data.pricingText}`.toLowerCase();
-
-  if (
-    value.includes("blossoms") ||
-    value.includes("children hospital") ||
-    value.includes("pediatric") ||
-    value.includes("paediatric")
-  ) {
-    return "blossoms";
-  }
-
-  if (
-    value.includes("trinity") ||
-    value.includes("kakinada") ||
-    value.includes("whatsapp marketing")
-  ) {
-    return "trinity";
-  }
-
-  if (value.includes("aster") || value.includes("ramesh")) {
-    return "aster";
-  }
-
-  return "standard";
-}
-
-function detectDoctorVariant(data) {
-  const value = `${data.clientName} ${data.specialty} ${data.packageText} ${data.pricingText}`.toLowerCase();
-
-  if (
-    value.includes("prathyusha") ||
-    value.includes("content creation") ||
-    value.includes("12 reels") ||
-    value.includes("40,000")
-  ) {
-    return "content_creation";
-  }
-
-  return "personal_branding";
-}
-
-function detectSelectedPackage(clientType, packageText) {
-  const value = packageText.toLowerCase();
-
-  if (clientType === "doctor") {
-    return STANDARD_PACKAGES.doctorPersonalBranding;
-  }
-
-  if (clientType === "solar") {
-    return STANDARD_PACKAGES.solarBusiness;
-  }
-
-  if (value.includes("custom")) {
-    return {
-      ...STANDARD_PACKAGES.hospitalGrowth,
-      title: "Custom Hospital Package",
-      monthlyInvestment: "As confirmed in pricing",
-    };
-  }
-
-  return STANDARD_PACKAGES.hospitalGrowth;
-}
-
-function detectAddOns(addOnsText) {
-  const value = addOnsText.toLowerCase();
-  const selectedAddOns = [];
-
-  if (value.includes("meta + google") || value.includes("meta and google")) {
-    selectedAddOns.push(ADD_ON_SERVICES.metaGoogleAds);
-  } else {
-    if (
-      value.includes("meta ads") ||
-      value.includes("paid ads") ||
-      value.includes("meta")
-    ) {
-      selectedAddOns.push(ADD_ON_SERVICES.metaAds);
-    }
-
-    if (value.includes("google ads")) {
-      selectedAddOns.push(ADD_ON_SERVICES.googleAds);
-    }
-  }
-
-  if (value.includes("advanced seo")) {
-    selectedAddOns.push(ADD_ON_SERVICES.advancedSeo);
-  } else if (value.includes("basic seo") || value.includes("seo")) {
-    selectedAddOns.push(ADD_ON_SERVICES.basicSeo);
-  }
-
-  if (
-    value.includes("conversion support") ||
-    value.includes("telecalling") ||
-    value.includes("lmt") ||
-    value.includes("follow-up") ||
-    value.includes("follow up")
-  ) {
-    selectedAddOns.push(ADD_ON_SERVICES.conversionSupport);
-  }
-
-  if (value.includes("website")) {
-    selectedAddOns.push(ADD_ON_SERVICES.websiteManagement);
-  }
-
-  if (value.includes("strategy") || value.includes("research")) {
-    selectedAddOns.push(ADD_ON_SERVICES.advancedStrategy);
-  }
-
-  if (value.includes("regular shoot")) {
-    selectedAddOns.push(ADD_ON_SERVICES.regularShoot);
-  }
-
-  if (value.includes("premium shoot")) {
-    selectedAddOns.push(ADD_ON_SERVICES.premiumShoot);
-  }
-
-  return selectedAddOns;
-}
-
-const REQUIRED_FIELD_KEYS = [
-  "clientTypeText",
-  "clientDetailsText",
-  "packageText",
-  "platformsText",
-  "addOnsText",
-  "pricingText",
-];
-
-const GENERIC_SINGLE_WORDS = [
-  "hospital",
-  "doctor",
-  "dr",
-  "solar",
-  "business",
-  "other",
-  "other business",
-  "package",
-  "proposal",
-  "platform",
-  "platforms",
-  "addon",
-  "addons",
-  "add-on",
-  "add-ons",
-  "pricing",
-  "price",
-  "tiktok",
-  "tik tok",
-];
-
-const VALID_PLATFORM_WORDS = [
-  "instagram",
-  "facebook",
-  "youtube",
-  "gmb",
-  "google business profile",
-  "google my business",
-  "google",
-  "website",
-  "whatsapp",
-  "whatsapp marketing",
-];
-
-const INVALID_PLATFORM_WORDS = [
-  "tiktok",
-  "tik tok",
-  "snapchat",
-  "telegram",
-];
-
-function getMessageText(message) {
-  return cleanText(message?.text || message?.content || message?.message || "");
-}
-
-function isBadInput(text) {
-  const value = cleanText(text).toLowerCase();
-
-  if (!value) return true;
-
-  const badInputs = [
-    "hi",
-    "hii",
-    "hello",
-    "hey",
-    "i don't know",
-    "i dont know",
-    "don't know",
-    "dont know",
-    "no idea",
-    "i don't tell you",
-    "i dont tell you",
-    "nothing",
-    "not sure",
-    "skip",
-    "test",
-    "abc",
-    "ok",
-  ];
-
-  return badInputs.includes(value);
-}
-
-function isGenericOnly(text) {
-  const value = cleanText(text).toLowerCase();
-  return GENERIC_SINGLE_WORDS.includes(value);
-}
-
-function isValidClientType(text) {
-  const value = cleanText(text).toLowerCase();
-
-  if (isBadInput(value)) return false;
-
-  return (
-    value.includes("hospital") ||
-    value.includes("doctor") ||
-    value.includes("dr.") ||
-    value.includes("solar") ||
-    value.includes("business")
-  );
-}
-
-function isValidClientDetails(text) {
-  const value = cleanText(text);
-  const lowerValue = value.toLowerCase();
-
-  if (isBadInput(value)) return false;
-  if (isGenericOnly(value)) return false;
-
-  if (
-    lowerValue === "instagram" ||
-    lowerValue === "facebook" ||
-    lowerValue === "youtube" ||
-    lowerValue === "gmb" ||
-    lowerValue === "google" ||
-    lowerValue === "website" ||
-    lowerValue === "whatsapp"
-  ) {
-    return false;
-  }
-
-  const parts = value
-    .split(",")
-    .map((part) => cleanText(part))
-    .filter(Boolean);
-
-  if (parts.length >= 2) {
-    const clientName = parts[0];
-    const city = parts[parts.length - 1];
-
-    return clientName.length >= 5 && city.length >= 3;
-  }
-
-  return false;
-}
-
-function isValidPackage(text) {
-  const value = cleanText(text).toLowerCase();
-
-  if (isBadInput(value)) return false;
-  if (isGenericOnly(value)) return false;
-
-  return (
-    value.includes("package") ||
-    value.includes("proposal") ||
-    value.includes("blossoms") ||
-    value.includes("trinity") ||
-    value.includes("aster") ||
-    value.includes("standard") ||
-    value.includes("content creation") ||
-    value.includes("personal branding") ||
-    value.includes("reels") ||
-    value.includes("posters") ||
-    value.includes("seo") ||
-    value.includes("gmb") ||
-    value.includes("social") ||
-    value.includes("meta ads") ||
-    value.includes("reporting") ||
-    value.includes("₹") ||
-    value.includes("rs") ||
-    /\b\d{4,}\b/.test(value)
-  );
-}
-
-function isValidPlatforms(text) {
-  const value = cleanText(text).toLowerCase();
-
-  if (isBadInput(value)) return false;
-
-  const hasInvalidPlatform = INVALID_PLATFORM_WORDS.some((word) =>
-    value.includes(word)
-  );
-
-  if (hasInvalidPlatform) return false;
-
-  return VALID_PLATFORM_WORDS.some((word) => value.includes(word));
-}
-
-function isValidAddOns(text) {
-  const value = cleanText(text).toLowerCase();
-
-  if (isBadInput(value)) return false;
-
-  if (value.includes("tiktok") || value.includes("tik tok")) return false;
-
-  if (
-    value.includes("no") ||
-    value.includes("none") ||
-    value.includes("no add")
-  ) {
-    return true;
-  }
-
-  return (
-    value.includes("meta") ||
-    value.includes("google") ||
-    value.includes("seo") ||
-    value.includes("ads") ||
-    value.includes("whatsapp") ||
-    value.includes("website") ||
-    value.includes("shoot") ||
-    value.includes("conversion") ||
-    value.includes("telecalling") ||
-    value.includes("reporting")
-  );
-}
-
-function isValidPricing(text) {
-  const value = cleanText(text).toLowerCase();
-
-  if (isBadInput(value)) return false;
-  if (isGenericOnly(value)) return false;
-
-  const hasLargeNumber = /\b\d{4,}\b/.test(value);
-
-  const hasShortMoney =
-    /\b\d+(\.\d+)?\s*k\b/.test(value) ||
-    /\b\d+(\.\d+)?\s*(l|lac|lakh)\b/.test(value);
-
-  const hasMoneyWord =
-    value.includes("₹") ||
-    value.includes("rs") ||
-    value.includes("inr") ||
-    value.includes("rupee") ||
-    value.includes("fee") ||
-    value.includes("budget") ||
-    value.includes("gst") ||
-    value.includes("price") ||
-    value.includes("pricing") ||
-    value.includes("amount") ||
-    value.includes("charge");
-
-  const hasPricingKeyword =
-    value.includes("pricing") ||
-    value.includes("price") ||
-    value.includes("service fee") ||
-    value.includes("professional fee") ||
-    value.includes("ad budget") ||
-    value.includes("gst") ||
-    value.includes("per month") ||
-    value.includes("/month") ||
-    value.includes("monthly") ||
-    value.includes("separate") ||
-    value.includes("confirmed") ||
-    value.includes("fee") ||
-    value.includes("budget") ||
-    value.includes("inr") ||
-    value.includes("rs");
-
-  const looksLikeOnlyPackage =
-    (value.includes("reels") ||
-      value.includes("posters") ||
-      value.includes("platform") ||
-      value.includes("instagram") ||
-      value.includes("facebook") ||
-      value.includes("youtube")) &&
-    !hasLargeNumber &&
-    !hasShortMoney &&
-    !hasMoneyWord;
-
-  return (
-    (hasLargeNumber || hasShortMoney || hasMoneyWord || hasPricingKeyword) &&
-    !looksLikeOnlyPackage
-  );
-}
-
-
-function splitUserInputIntoSegments(messages) {
-  return getUserMessages(messages)
-    .flatMap((message) => {
-      const text = getMessageText(message);
-
-      return text
-        .split(/\n|\|/)
-        .map((item) => cleanText(item))
-        .filter(Boolean);
-    })
-    .filter((item) => !isBadInput(item));
-}
-
-function getExplicitClientType(text) {
-  const value = cleanText(text).toLowerCase();
-
-  if (value.includes("doctor") || value.includes("dr.")) return "doctor";
-  if (value.includes("solar")) return "solar";
-  if (value.includes("hospital")) return "hospital";
-  if (value.includes("business")) return "other business";
-
-  return "";
-}
-
-function buildAcceptedAnswersFromCollectedData(collectedData) {
-  return REQUIRED_FIELD_KEYS.filter((key) => collectedData[key]).map(
-    (key, index) => ({
-      stepIndex: index,
-      key,
-      value: collectedData[key],
-      raw: collectedData[key],
-    })
-  );
-}
-
-function collectProposalInputs(messages) {
-  const segments = splitUserInputIntoSegments(messages);
-  const fullText = segments.join("\n");
-
-  const collectedData = {
-    clientTypeText: "",
-    clientDetailsText: "",
-    packageText: "",
-    platformsText: "",
-    addOnsText: "",
-    pricingText: "",
-  };
-
-  segments.forEach((segment) => {
-    if (!collectedData.clientTypeText && isValidClientType(segment)) {
-      collectedData.clientTypeText = segment;
-    }
-
-    if (!collectedData.clientDetailsText && isValidClientDetails(segment)) {
-      collectedData.clientDetailsText = segment;
-    }
-
-    if (!collectedData.packageText && isValidPackage(segment)) {
-      collectedData.packageText = segment;
-    }
-
-    if (!collectedData.platformsText && isValidPlatforms(segment)) {
-      collectedData.platformsText = segment;
-    }
-
-    if (!collectedData.addOnsText && isValidAddOns(segment)) {
-      collectedData.addOnsText = segment;
-    }
-
-    if (!collectedData.pricingText && isValidPricing(segment)) {
-      collectedData.pricingText = segment;
-    }
-  });
-
-  if (!collectedData.clientTypeText) {
-    const explicitClientType = getExplicitClientType(fullText);
-
-    if (explicitClientType) {
-      collectedData.clientTypeText = explicitClientType;
-    }
-  }
-
-  const missingFields = REQUIRED_FIELD_KEYS.filter((key) => !collectedData[key]);
-
-  const hasInvalidPlatform = INVALID_PLATFORM_WORDS.some((word) =>
-    fullText.toLowerCase().includes(word)
-  );
-
-  return {
-    collectedData,
-    missingFields,
-    hasInvalidPlatform,
-    acceptedAnswers: buildAcceptedAnswersFromCollectedData(collectedData),
-    isComplete: missingFields.length === 0 && !hasInvalidPlatform,
-  };
-}
-
-export function getValidatedConversation(messages) {
-  const collected = collectProposalInputs(messages);
-
-  return {
-    acceptedAnswers: collected.acceptedAnswers,
-    collectedData: collected.collectedData,
-    missingFields: collected.missingFields,
-    hasInvalidPlatform: collected.hasInvalidPlatform,
-    currentStep: collected.acceptedAnswers.length,
-    isComplete: collected.isComplete,
-  };
-}
-
-function getValidatedAnswer(acceptedAnswers, key) {
-  return acceptedAnswers.find((item) => item.key === key)?.value || "";
-}
-
-function extractProposalData(messages) {
-  const validatedConversation = getValidatedConversation(messages);
-  const acceptedAnswers = validatedConversation.acceptedAnswers;
-
-  const clientTypeText = getValidatedAnswer(acceptedAnswers, "clientTypeText");
-  const clientDetailsText = getValidatedAnswer(
-    acceptedAnswers,
-    "clientDetailsText"
-  );
-  const packageText = getValidatedAnswer(acceptedAnswers, "packageText");
-  const platformsText = getValidatedAnswer(acceptedAnswers, "platformsText");
-  const addOnsText = getValidatedAnswer(acceptedAnswers, "addOnsText");
-  const pricingText = getValidatedAnswer(acceptedAnswers, "pricingText");
-  const extraText = acceptedAnswers.map((answer) => answer.value).join("\n");
-
-  const clientType = detectClientType(clientTypeText);
-  const { clientName, city, specialty } =
-    getClientNameAndCity(clientDetailsText);
-  const selectedPackage = detectSelectedPackage(clientType, packageText);
-  const selectedAddOns = detectAddOns(addOnsText);
-
-  const allText = `${clientTypeText} ${clientDetailsText} ${packageText} ${platformsText} ${addOnsText} ${pricingText}`;
-
-  const data = {
-    clientType,
-    clientName,
-    city,
-    specialty,
-    packageText,
-    platformsText,
-    addOnsText,
-    pricingText,
-    extraText,
-    allText,
-    selectedPackage,
-    selectedAddOns,
-    reels: readNumber(allText, "reels?", ""),
-    posters: readNumber(allText, "posters?|creatives?", ""),
-    shoots: readNumber(allText, "shoots?", ""),
-    blogs: readNumber(allText, "blogs?", ""),
-    adBudget: readAdBudget(allText, ""),
-    validatedConversation,
-  };
-
-  if (clientType === "hospital") {
-    data.hospitalVariant = detectHospitalVariant(data);
-  }
-
-  if (clientType === "doctor") {
-    data.doctorVariant = detectDoctorVariant(data);
-  }
-
-  return data;
-}
-
-function getProposalTitle(data) {
-  if (data.clientType === "doctor") {
-    if (data.doctorVariant === "content_creation") {
-      return `CONTENT CREATION PROPOSAL\n${data.clientName.toUpperCase()}${
-        data.specialty ? ` – ${data.specialty.toUpperCase()}` : ""
-      }`;
-    }
-
-    return `DOCTOR PERSONAL BRANDING PROPOSAL\nPrepared For: ${data.clientName}\nPrepared By: ${COMPANY_DETAILS.shortName}`;
-  }
-
-  return `ATOMS DIGITAL SOLUTIONS\nDIGITAL MARKETING PROPOSAL\n${data.clientName.toUpperCase()}${
-    data.city ? `, ${data.city.toUpperCase()}` : ""
-  }`;
-}
-
-function getImportantNotes(clientType) {
-  if (clientType === "doctor") return FIXED_IMPORTANT_NOTES.doctor;
-  if (clientType === "solar") return FIXED_IMPORTANT_NOTES.solar;
-
-  return FIXED_IMPORTANT_NOTES.hospital;
-}
-
-function getInvestmentText(data, fallbackText = "") {
-  if (data.pricingText) return data.pricingText;
-  if (fallbackText) return fallbackText;
-  if (data.selectedPackage?.monthlyInvestment) {
-    return data.selectedPackage.monthlyInvestment;
-  }
-
-  return "As confirmed by the client";
-}
-
-function buildSection(section, index) {
-  const prefix = index ? `${index}. ` : "";
-  let output = `${prefix}${section.title}\n`;
-
-  if (section.platformsCovered) {
-    output += `Platforms Covered:\n${buildBulletList(section.platformsCovered)}\n`;
-  }
-
-  if (section.whatWeDo) {
-    output += `What We Do\n${buildBulletList(section.whatWeDo)}\n`;
-  }
-
-  if (section.expectedResults) {
-    output += `Expected Results\n${buildBulletList(section.expectedResults)}\n`;
-  }
-
-  return output.trim();
-}
-
-function buildAddOnSections(selectedAddOns, startIndex) {
-  if (!selectedAddOns || selectedAddOns.length === 0) return "";
-
-  let output = `${startIndex}. Optional Growth Add-Ons\n`;
-
-  selectedAddOns.forEach((addOn) => {
-    output += `\n${addOn.title} - ${addOn.price || "Custom Pricing"}\n`;
-
-    if (addOn.whatWeDo) {
-      output += `What We Do\n${buildBulletList(addOn.whatWeDo)}\n`;
-    }
-
-    if (addOn.note) {
-      output += `Note: ${addOn.note}\n`;
-    }
-  });
-
-  return output.trim();
-}
-
-function buildBlossomsContentStrategy() {
+function buildFixedParametersText() {
   return `
-1. Child Healthcare Awareness
-• Child growth milestones
-• Vaccination awareness
-• Common pediatric concerns
+Company Details:
+- Company Name: ${COMPANY_DETAILS.companyName}
+- Short Name: ${COMPANY_DETAILS.shortName}
+- CIN: ${COMPANY_DETAILS.cin}
+- Email: ${COMPANY_DETAILS.email}
+- Phone: ${COMPANY_DETAILS.phone}
+- Address: ${COMPANY_DETAILS.address}
 
-2. Doctor-Led Content
-• Doctors explaining treatments
-• FAQs for parents
-• Myth vs fact
+Standard Fixed Packages:
+Hospital Growth Package:
+- Monthly Investment: ${STANDARD_PACKAGES.hospitalGrowth.monthlyInvestment}
+- Deliverables: 12 reels, 6 posters, 1 regular shoot, Instagram, Facebook, YouTube, Google My Business
+- Sections include Content Strategy & Planning, Reel Content Creation, Creative Designing, Social Media Management, Google Presence Management, Shoot Support, Client Support, Performance Observation.
 
-3. Patient Experiences
-• Attendee experiences handled sensitively
-• Case studies
-• Trust-building stories
+Doctor Personal Branding Package:
+- Monthly Investment: ${STANDARD_PACKAGES.doctorPersonalBranding.monthlyInvestment}
+- Deliverables: 8 reels, 4 posters, Instagram, Facebook, YouTube, Google My Business if applicable
+- Sections include Personal Brand Positioning, Content Planning, Reels, Creatives, Social Media Management, GMB, Support and Review.
 
-4. Hospital & Care Environment
-• Facilities, NICU, pediatric care
-• Safety and hygiene practices
+Solar Digital Marketing Package:
+- Monthly Investment: ${STANDARD_PACKAGES.solarBusiness.monthlyInvestment}
+- Ad Budget: ${STANDARD_PACKAGES.solarBusiness.adBudget}
+- Sections include GMB, Social Media, Meta Ads, Reporting and Support.
+
+Add-ons:
+- Meta Ads: ${ADD_ON_SERVICES.metaAds.price}
+- Google Ads: ${ADD_ON_SERVICES.googleAds.price}
+- Meta + Google Ads: ${ADD_ON_SERVICES.metaGoogleAds.price}
+- Basic SEO: ${ADD_ON_SERVICES.basicSeo.price}
+- Advanced SEO: ${ADD_ON_SERVICES.advancedSeo.price}
+- Lead Management / Telecalling: ${ADD_ON_SERVICES.conversionSupport.price}
+- Website Management: ${ADD_ON_SERVICES.websiteManagement.price}
+- Advanced Strategy & Research: ${ADD_ON_SERVICES.advancedStrategy.price}
+- Regular Shoot: ${ADD_ON_SERVICES.regularShoot.price}
+- Premium Shoot: ${ADD_ON_SERVICES.premiumShoot.price}
+- Extra Reel: ${ADD_ON_SERVICES.extraReel.price}
+- Extra Poster: ${ADD_ON_SERVICES.extraPoster.price}
+
+Important Notes:
+Hospital:
+${FIXED_IMPORTANT_NOTES.hospital.map((item) => `- ${item}`).join("\n")}
+Doctor:
+${FIXED_IMPORTANT_NOTES.doctor.map((item) => `- ${item}`).join("\n")}
+Solar:
+${FIXED_IMPORTANT_NOTES.solar.map((item) => `- ${item}`).join("\n")}
+
+Default Content Themes:
+Hospital: ${CONTENT_THEMES.hospital.join(", ")}
+Doctor: ${CONTENT_THEMES.doctor.join(", ")}
+Solar: ${CONTENT_THEMES.solar.join(", ")}
 `.trim();
 }
 
-function buildAsterContentStrategy() {
-  return `
-• Specialisation introduction
-• Doctor-led content
-• Patient experience handled sensitively
-• Awareness and education
-• Hospital and infrastructure
-• Lead magnets for specific conditions
-`.trim();
-}
+const PROPOSAL_REFERENCE_CONTEXT = `
+REFERENCE PROPOSAL STYLE AND KNOWLEDGE BASE
 
-function buildTrinityContentStrategy() {
-  return `
-• Specialisation introduction
-• Doctor-led content
-• Patient experience handled sensitively
-• Awareness and education
-• Hospital and infrastructure
-• WhatsApp healthcare awareness communication
-`.trim();
-}
+Use these reference structures and write in Atoms Digital Solutions style. Do not copy blindly; adapt to the user-provided client details.
 
-function buildBlossomsProposal(data, contentBlocks) {
-  const reels = data.reels || "12";
-  const posters = data.posters || "4";
-  const adBudget = data.adBudget || "₹10,000 per month";
+1. Trinity Hospitals, Kakinada reference:
+- Title: ATOMS DIGITAL SOLUTIONS DIGITAL MARKETING PROPOSAL TRINITY HOSPITALS, KAKINADA
+- Overview: Trinity moving into multi-speciality positioning; focus on local visibility, patient trust, and awareness.
+- Sections: Website SEO, Google Business Profile, Social Media including Facebook + Instagram + YouTube + WhatsApp Marketing, Paid Advertising, WhatsApp Marketing, Reporting & Support, Important Notes, Other Strategies, Conclusion.
+- Social media deliverables: 16 reels plus special day creatives, QR based appointment booking, WhatsApp marketing.
+- Content Strategy: Specialisation Introduction, Doctor-Led Content, Patient Experience handled sensitively, Awareness & Education, Hospital & Infrastructure.
+- Ad budget example: ₹25,000 – ₹30,000 per month.
+- Other strategies: podcasts with doctors, voxpop, ad film, collaborative videos, Instagram lives, awareness sessions, medical camps, walks/rallies, outreach camps, brochures.
 
-  return `
-${getProposalTitle(data)}
+2. Blossoms Mother & Child Hospital reference:
+- Title: ATOMS DIGITAL SOLUTIONS DIGITAL MARKETING PROPOSAL BLOSSOMS CHILDREN HOSPITAL, GUNTUR
+- Sections: GMB, Social Media, Paid Advertising Meta Ads Only, Reporting & Support, Investment, Important Notes, Conclusion.
+- Deliverables: 12 reels, 4 posters per month, special day creatives may increase.
+- Content Strategy: Child Healthcare Awareness, Doctor-Led Content, Patient Experiences, Hospital & Care Environment.
+- Expected reach: 1.5L – 2L people/month.
+- Professional service fee example: ₹40,000 per month. Ad budget example: ₹10,000 per month.
 
-Overview
-${contentBlocks.overview}
+3. Solar proposal reference:
+- Title: ATOMS DIGITAL SOLUTIONS DIGITAL MARKETING PROPOSAL
+- Overview: Solar decisions are trust-driven and education-based. Focus on savings, installation process, maintenance, and long-term benefits.
+- Sections: Google Business Profile, Social Media, Content Strategy, Paid Advertising, Reporting & Support, Investment.
+- Deliverables: 12 reels, 4 posters, GMB, social media, Meta Ads.
+- Content Strategy: Site Visit Vlogs, Myth Busting, Trust & Expertise Building, Founder POV Videos.
+- Professional fee example: ₹40,000 per month + 18% GST. Ad budget example: ₹10,000 per month.
 
-1. Google Business Profile (GMB)
-What We Do
-• Optimise and manage Google Business Profile
-• Post regular updates
-• Upload photos, services, and treatment highlights
-• Reviews management
-• Maintain accurate and consistent business information
+4. Dr. Prathyusha reference:
+- Title: CONTENT CREATION PROPOSAL DR. PRATHYUSHA – GYNECOLOGIST & FERTILITY SPECIALIST
+- Sections: Overview, Content Creation Services, Content Strategy & Planning, Content Production, Content Themes, Shoot & Production Support, Social Media Management, Expected Outcomes, Investment, Important Notes, Conclusion.
+- Deliverables: 12 reels, 4 posters, stories regular updates.
+- Content themes: Women’s Health Awareness, Fertility Awareness, Doctor-Led Educational Content, Emotional & Relatable Content, Personal Branding.
+- Investment example: ₹40,000 per month.
 
-Expected Results
-• Higher visibility in Google Maps and local search
-• Increase in calls, direction requests, and walk-ins
-• Strong trust through positive patient reviews
+5. Aster Ramesh Hospitals reference versions:
+- Title: DIGITAL MARKETING PROPOSAL ASTER RAMESH HOSPITALS, VIJAYAWADA
+- Overview: trusted multi-speciality healthcare institution; opportunity to enhance digital healthcare authority through speciality visibility, doctor-led communication, educational healthcare content, and consistent digital presence.
+- Version 1 basic package: GMB, Social Media, Reporting & Support, Optional Paid Ads. Deliverables: 18 reels, 6 posters, 1 video shoot. Pricing example: ₹1,00,000 + GST.
+- Version 2 advanced package: Website & SEO, GMB, Social Media, Reporting & Support, Optional Paid Ads. Deliverables: 24 reels, 10 posters, 2 video shoots, 4 blogs. Pricing example: ₹1,25,000 + GST.
+- Version 3 premium package: Website & SEO, GMB, Social Media, Reporting & Support, Optional Paid Ads. Deliverables: 24 reels, 10 posters, 2 video shoots, 4 blogs, 1 podcast with 2 camera men + 1 DOP, 1 hour video, teaser, 8 podcast reels. Pricing example: ₹1,70,000 + GST.
+- Content Strategy: Specialisation Introduction, Doctor-Led Content, Patient Experience handled sensitively, Awareness & Education, Hospital & Infrastructure, Lead Magnets.
 
-2. Social Media (Facebook + Instagram + YouTube)
-(Primary Engagement & Trust Building Channel)
-
-What We Do
-• Create monthly content calendar
-• Post ${reels} reels per month
-• ${posters} posters per month, may increase based on special days
-• Manage and grow all platforms consistently
-
-Content Strategy
-${buildBlossomsContentStrategy()}
-
-Expected Results
-• Reach: 1.5L – 2L people/month
-• Consistent follower growth
-• Strong brand recall among parents
-
-3. Paid Advertising (Meta Ads Only)
-What We Do
-• Run awareness campaigns targeting expecting mothers and parents
-• Promote key services like maternity care and pediatrics
-• Drive traffic to social media pages
-
-Ad Budget Recommended: ${adBudget}
-
-Expected Results
-• Reach: 1.5L – 2L people/month
-• Profile visits and engagement increase
-• Improved visibility in target audience
-• Increase in indirect enquiries through calls, visits, and referrals
-
-4. Reporting & Support
-What We Do
-• Dedicated Relationship Manager
-• Monthly performance report
-• Continuous optimisation based on insights
-
-Expected Results
-• Clear visibility of growth
-• Data-driven improvements
-• Consistent performance tracking
-
-Investment
-${getInvestmentText(data, "Professional Service Fee: ₹40,000 per month")}
-
-Important Notes
-${buildBulletList(getImportantNotes("hospital"))}
-
-Conclusion
-${contentBlocks.conclusion}
-
-${COMPANY_DETAILS.address}
-`.trim();
-}
-
-function buildTrinityProposal(data, contentBlocks) {
-  const reels = data.reels || "16";
-  const adBudget = data.adBudget || "₹25,000 – 30,000 per month";
-
-  return `
-${getProposalTitle(data)}
-
-Overview
-${contentBlocks.overview}
-
-1. Website (SEO)
-What We Do
-• Audit and optimise website
-• Improve content structure and SEO elements
-• Optimise pages for keywords like "Best hospital in ${
-    data.city || "the target city"
-  }" and "Specialist doctors near me"
-• Create 2 blogs per month for health awareness and treatments
-• Structure website department-wise for clarity
-
-Expected Results
-• Improved Google ranking for hospital and speciality searches
-• Increase in organic website visitors
-• Better patient understanding and trust
-• Long-term consistent traffic without ad dependency
-
-2. Google Business Profile (GMB)
-What We Do
-• Complete optimisation of GMB profile
-• Upload hospital photos, services, and updates
-• Manage Google reviews
-• Maintain accurate and consistent information
-
-Expected Results
-• Higher visibility in Google Maps and local search
-• Increase in direction requests and walk-ins
-• Strong patient trust through reviews
-
-3. Social Media (Facebook + Instagram + YouTube + WhatsApp Marketing)
-(Primary Branding & Trust Building Channel)
-
-What We Do
-• Create structured monthly content calendar
-• Post ${reels} reels plus special day creatives on a monthly basis
-• QR code based appointment booking implementation
-• Manage and grow all platforms consistently
-• WhatsApp marketing
-
-Content Strategy
-${buildTrinityContentStrategy()}
-
-4. Paid Advertising (Meta Ads)
-What We Do
-• Run awareness campaigns for hospital and departments
-• Promote key services and doctor expertise
-• Target audience in ${data.city || "the target city"} and nearby areas
-• Drive traffic to Instagram page and website
-
-Ad Budget Recommended: ${adBudget}
-
-Expected Results
-• Reach: 4,00,000 to 5,00,000 people/month
-• Increased visibility across local audience
-• Indirect enquiries through calls, walk-ins, and referrals
-
-5. WhatsApp Marketing
-What We Do
-• Educational healthcare content circulation
-• Occasional service updates like camps and offers
-
-Expected Results
-• Improved patient familiarity and retention
-• Consistent healthcare awareness within existing audience
-• Stronger connection between hospital and community
-
-6. Reporting & Support
-What We Do
-• Dedicated Relationship Manager
-• Monthly performance report
-• Continuous optimisation based on results
-
-Expected Results
-• Clear visibility of growth
-• Data-driven improvements
-• Consistent performance tracking
-
-Investment
-${getInvestmentText(data, "As confirmed by the client")}
-
-Important Notes
-${buildBulletList(getImportantNotes("hospital"))}
-
-Other Strategies
-• Podcasts with doctors
-• Voxpop
-• Ad film
-• Collaborative videos between doctors
-• Frequent lives on Instagram
-• Awareness sessions in colleges
-• Medical camps and occasional free OPs
-• Walks and rallies on special days
-• Special outreach camps for government employees
-• Brochures to every patient who attended the hospital
-
-Conclusion
-${contentBlocks.conclusion}
-
-${COMPANY_DETAILS.address}
-`.trim();
-}
-
-function buildAsterProposal(data, contentBlocks) {
-  const text = data.allText.toLowerCase();
-
-  const isPodcastPlan =
-    text.includes("podcast") ||
-    text.includes("1,70,000") ||
-    text.includes("170000");
-
-  const isBasicPlan =
-    text.includes("1,00,000") ||
-    text.includes("100000") ||
-    text.includes("18 reels");
-
-  const reels = data.reels || (isBasicPlan ? "18" : "24");
-  const posters = data.posters || (isBasicPlan ? "6" : "10");
-  const shoots = data.shoots || (isBasicPlan ? "1" : "2");
-  const blogs = data.blogs || (isBasicPlan ? "" : "4");
-  const adBudget = data.adBudget || "₹25,000 – 30,000 per month";
-
-  const defaultPricing = isPodcastPlan
-    ? "Pricing: ₹1,70,000 + GST"
-    : isBasicPlan
-    ? "Pricing: ₹1,00,000 + GST"
-    : "Pricing: ₹1,25,000 + GST";
-
-  const websiteSeoSection = isBasicPlan
-    ? ""
-    : `
-1. Website & SEO Optimisation
-What We Do
-• Conduct a comprehensive SEO audit of the website
-• Optimise website structure, page hierarchy, and technical SEO elements
-• Improve speciality and treatment-based discoverability across search engines
-• Optimise department pages, doctor profiles, and service pages
-• Implement local SEO strategies targeting ${data.city || "the target region"}
-• Publish SEO-focused healthcare awareness and patient education blogs
-• Strengthen website content structure for better user experience and search visibility
-
-Expected Results
-• Improved search visibility across key medical specialities
-• Higher organic traffic from healthcare-related searches
-• Better discoverability for departments and doctors
-• Strengthened digital credibility and patient trust
+6. Additional notes reference:
+- Hospital proposal default has Hospital Growth Package at ₹60,000/month with 12 reels, 6 posters, 1 shoot, Instagram/Facebook/YouTube/GMB.
+- Doctor default has Doctor Personal Branding Package at ₹35,000/month with 8 reels, 4 posters, Instagram/Facebook/YouTube/GMB if applicable.
+- Add-on pricing includes Meta Ads ₹6,000/month, Google Ads ₹12,000/month, Meta+Google ₹15,000/month, Basic SEO ₹10,000/month, Advanced SEO ₹20,000/month, Lead Management ₹15,000/month, Website Management ₹5,000/month, Advanced Strategy ₹8,000/month, Regular Shoot ₹5,000, Premium Shoot ₹10,000, Extra Reel ₹1,000, Extra Poster ₹500.
 `;
 
-  const startNumber = isBasicPlan ? 1 : 2;
-
+function buildAiSystemPrompt() {
   return `
-${getProposalTitle(data)}
+You are a FULL AI CHATBOT called "Atoms Digital Solutions Proposal Assistant".
+You are not a rule-based form and not a fixed auto-machine.
+Every chat reply must be natural, context-aware, and generated by AI.
 
-Overview
-${contentBlocks.overview}
+Your responsibilities:
+1. Talk like a professional AI assistant.
+2. Answer normal chat messages naturally.
+3. Understand proposal details from unstructured user input.
+4. Ask for missing details conversationally, not as rigid form validation.
+5. Answer questions from the already provided proposal details.
+6. Never repeat the same line blindly.
+7. Never say "All details are collected" repeatedly.
+8. If enough details are available, tell the user they can generate the proposal, but still answer their question first.
+9. Keep replies short and useful in chat.
+10. For medical/healthcare proposals, do not make medical claims; speak only about digital marketing strategy.
 
-${websiteSeoSection}
-${startNumber}. Google Business Profile (GMB) Optimisation
-What We Do
-• Complete optimisation and management of Google Business Profile
-• Regular updates with hospital activities, services, and awareness communication
-• Upload professional hospital, infrastructure, and speciality-related visuals
-• Review monitoring and reputation management
-• Maintain accurate and consistent hospital information across Google platforms
+Required proposal details you should try to understand:
+- Client type: Hospital / Doctor / Solar / Other business
+- Client name and city
+- Package or services
+- Platforms
+- Add-ons
+- Pricing / budget
 
-Expected Results
-• Improved visibility in Google Maps and local healthcare searches
-• Increased patient engagement through calls, direction requests, and profile interactions
-• Stronger trust through patient reviews and active profile management
-• Enhanced local discoverability for hospital services and specialities
+${buildFixedParametersText()}
 
-${startNumber + 1}. Social Media Positioning (Facebook + Instagram + YouTube)
-(Primary Branding, Healthcare Awareness & Trust Building Channel)
-
-What We Do
-• Develop a structured monthly healthcare strategy aligned with the hospital’s positioning and priorities
-• Prepare a detailed monthly content calendar
-• Research, plan, and write healthcare-focused content
-• Coordinate and conduct content shoots with doctors and hospital infrastructure
-• Edit healthcare videos and design premium-quality creatives aligned with institutional standards
-• Publish and manage content across Facebook, Instagram, and YouTube platforms
-• Maintain consistent visual identity and communication standards across all platforms
-
-Monthly Deliverables
-• ${reels} Reels
-• ${posters} Posters
-• ${shoots} Video Shoot${shoots === "1" ? "" : "s"}
-${blogs ? `• ${blogs} Blogs` : ""}${
-    isPodcastPlan
-      ? "\n• 1 Podcast\n• Podcast shoot with 2 camera men and 1 DOP\n• One hour video - 1\n• Teaser - 1\n• Podcast reels - 8"
-      : ""
-  }
-
-Content Strategy
-${buildAsterContentStrategy()}
-
-${startNumber + 2}. Reporting & Support
-What We Do
-• Dedicated Relationship Manager
-• Monthly performance and analysis report
-• Continuous optimisation based on results
-
-Expected Results
-• Clear visibility of growth
-• Data-driven improvements
-• Consistent performance tracking
-
-${startNumber + 3}. Paid Advertising (Meta Ads and Google Ads) (Optional)
-What We Do
-• Awareness campaigns for hospital and departments across Meta, YouTube, and Google Search Ads
-• Promote key services and doctor expertise
-• Target audience in ${data.city || "the target city"} and nearby areas
-• Drive traffic to Instagram page and website
-
-Ad Budget Recommended: ${adBudget}
-
-Expected Results
-• Reach: 4,00,000 to 5,00,000 people/month
-• Increased visibility across local audience
-• Indirect enquiries through calls, walk-ins, and referrals
-
-Other Strategies
-• Voxpop
-• Collaborative videos between doctors
-• Frequent lives on Instagram
-
-Investment
-${getInvestmentText(data, defaultPricing)}
-
-Important Notes
-${buildBulletList(getImportantNotes("hospital"))}
-
-Conclusion
-${contentBlocks.conclusion}
-
-${COMPANY_DETAILS.address}
+${PROPOSAL_REFERENCE_CONTEXT}
 `.trim();
 }
 
-function buildStandardHospitalProposal(data, contentBlocks) {
-  const packageSections = data.selectedPackage.sections || [];
-  const addOnText = buildAddOnSections(
-    data.selectedAddOns,
-    packageSections.length + 2
-  );
-
-  return `
-${getProposalTitle(data)}
-
-Overview
-${contentBlocks.overview}
-
-${packageSections
-  .map((section, index) => buildSection(section, index + 1))
-  .join("\n\n")}
-
-Content Strategy
-${buildBulletList(contentBlocks.contentStrategy || CONTENT_THEMES.hospital)}
-
-${addOnText ? `${addOnText}\n\n` : ""}Investment / Pricing
-${getInvestmentText(data)}
-
-Important Notes
-${buildBulletList(getImportantNotes("hospital"))}
-
-Conclusion
-${contentBlocks.conclusion}
-
-${COMPANY_DETAILS.address}
-`.trim();
-}
-
-function buildHospitalProposal(data, contentBlocks) {
-  if (data.hospitalVariant === "blossoms") {
-    return buildBlossomsProposal(data, contentBlocks);
-  }
-
-  if (data.hospitalVariant === "trinity") {
-    return buildTrinityProposal(data, contentBlocks);
-  }
-
-  if (data.hospitalVariant === "aster") {
-    return buildAsterProposal(data, contentBlocks);
-  }
-
-  return buildStandardHospitalProposal(data, contentBlocks);
-}
-
-function buildDoctorContentCreationProposal(data, contentBlocks) {
-  const reels = data.reels || "12";
-  const posters = data.posters || "4";
-
-  return `
-${getProposalTitle(data)}
-
-Overview
-${contentBlocks.overview}
-
-Content Creation Services
-
-1. Content Strategy & Planning
-What We Do
-• Define target audience
-• Build monthly content calendar
-• Identify key topics based on patient concerns
-• Structure content pillars aligned with medical expertise
-
-2. Content Production
-Deliverables Per Month
-• Reels: ${reels} per month
-• Posters: ${posters} per month
-• Stories: Regular updates based on engagement
-
-3. Content Themes
-• Women’s Health Awareness
-• Fertility Awareness
-• Doctor-Led Educational Content
-• Emotional and Relatable Content
-• Personal Branding
-
-4. Shoot & Production Support
-What We Do
-• Plan and guide monthly shoot
-• Provide content scripting support
-• Ensure content is simple, relatable, and engaging
-• Video editing with professional and clean style
-
-5. Social Media Management
-Platforms Covered
-• Instagram
-• Facebook
-• YouTube
-
-What We Do
-• Posting content regularly
-• Basic engagement handling
-
-Expected Outcomes
-• Strong personal brand for ${data.clientName}
-• Increased trust among patients
-• Better patient comfort before consultation
-• Consistent growth in followers and engagement
-• Improved recall as a trusted specialist
-
-Investment
-${getInvestmentText(data, "Content Creation Package: ₹40,000 per month")}
-
-Important Notes
-${buildBulletList([
-  "Doctor presence in videos is essential for best results.",
-  "Content consistency is key to building trust.",
-  "Results improve significantly over 2–3 months.",
-])}
-
-Conclusion
-${contentBlocks.conclusion}
-
-${COMPANY_DETAILS.address}
-`.trim();
-}
-
-function buildDoctorPersonalBrandingProposal(data, contentBlocks) {
-  const packageData = STANDARD_PACKAGES.doctorPersonalBranding;
-  const packageSections = packageData.sections || [];
-  const addOnText = buildAddOnSections(data.selectedAddOns, 4);
-
-  return `
-${getProposalTitle(data)}
-
-1. Understanding Your Requirement
-${contentBlocks.overview}
-
-2. Objectives of Personal Branding
-${buildBulletList(contentBlocks.expectedResults)}
-
-3. Recommended Service Scope
-${packageData.title}
-Monthly Investment: ${packageData.monthlyInvestment}
-
-${packageSections.map((section) => buildSection(section, "")).join("\n\n")}
-
-${addOnText ? `${addOnText}\n\n` : ""}5. Why Atoms Digital Solutions?
-• Specialized healthcare marketing experience
-• Doctor-focused branding strategy
-• Professional content planning
-• High-quality creative execution
-• Research-backed content ideas
-• Consistent visibility strategy
-• Dedicated monthly review and support
-
-Important Notes
-${buildBulletList(getImportantNotes("doctor"))}
-
-6. Next Steps
-We would be happy to understand your specialty, goals, and vision to customize a branding strategy that helps strengthen your digital presence and professional authority.
-
-Conclusion
-${contentBlocks.conclusion}
-
-${COMPANY_DETAILS.address}
-`.trim();
-}
-
-function buildDoctorProposal(data, contentBlocks) {
-  if (data.doctorVariant === "content_creation") {
-    return buildDoctorContentCreationProposal(data, contentBlocks);
-  }
-
-  return buildDoctorPersonalBrandingProposal(data, contentBlocks);
-}
-
-function buildSolarContentStrategy() {
-  return `
-1. Site Visit Vlogs
-• Visiting ongoing projects
-• Explaining system size
-• Why customer installed solar
-• Savings breakdown
-
-2. Myth Busting
-• Solar works even in the rainy season?
-• Do solar panels damage roofs?
-• Is subsidy real or fake?
-
-3. Trust & Expertise Building
-• Installation process explanation
-• Quality and safety standards
-• Behind-the-scenes installation workflow
-• Electricity bill analysis
-• Site inspections
-• Customer handovers
-
-4. Founder POV Videos
-• Why solar matters
-• Market truths
-• How to avoid poor-quality vendors
-• Choosing the right solar system
-`.trim();
-}
-
-function buildSolarProposal(data, contentBlocks) {
-  const packageData = STANDARD_PACKAGES.solarBusiness;
-  const packageSections = packageData.sections || [];
-
-  return `
-${getProposalTitle(data)}
-
-Overview
-${contentBlocks.overview}
-
-${packageSections
-  .map((section, index) => buildSection(section, index + 1))
-  .join("\n\n")}
-
-Content Strategy
-${buildSolarContentStrategy()}
-
-Investment
-${getInvestmentText(data, "Professional Service Fee: ₹40,000 per month + 18% GST")}
-
-Important Notes
-${buildBulletList(getImportantNotes("solar"))}
-
-Conclusion
-${contentBlocks.conclusion}
-
-${COMPANY_DETAILS.address}
-`.trim();
-}
-
-function buildFinalProposal(data, contentBlocks) {
-  if (data.clientType === "doctor") {
-    return buildDoctorProposal(data, contentBlocks);
-  }
-
-  if (data.clientType === "solar") {
-    return buildSolarProposal(data, contentBlocks);
-  }
-
-  return buildHospitalProposal(data, contentBlocks);
-}
-
-function getLocalContentBlocks(data) {
-  if (data.clientType === "doctor") {
-    return {
-      overview: `${data.clientName} requires a strong and consistent digital presence to improve trust, visibility, and patient confidence. The focus is to position the doctor as an approachable and reliable medical expert through educational and trust-building content.`,
-      contentStrategy: CONTENT_THEMES.doctor,
-      expectedResults: [
-        "Building doctor authority and professional credibility",
-        "Increasing visibility and public awareness",
-        "Strengthening patient trust and confidence",
-        "Educating the audience through valuable medical content",
-        "Creating long-term reputation growth",
-      ],
-      conclusion: `Atoms Digital Solutions will help ${data.clientName} build a professional and trustworthy digital presence through consistent content, patient education, and personal branding.`,
-    };
-  }
-
-  if (data.clientType === "solar") {
-    return {
-      overview: `${data.clientName} can strengthen its digital presence by educating customers about solar benefits, savings, installation process, and long-term value. The focus is to build trust and improve local visibility for solar solutions.`,
-      contentStrategy: CONTENT_THEMES.solar,
-      expectedResults: [
-        "Improved local visibility",
-        "Stronger trust through project showcases",
-        "Better awareness about solar savings and subsidy",
-        "Increased enquiries from homeowners and businesses",
-      ],
-      conclusion: `Atoms Digital Solutions will position ${data.clientName} as a trusted solar solutions provider through educational content, local visibility, and targeted awareness campaigns.`,
-    };
-  }
-
-  if (data.hospitalVariant === "blossoms") {
-    return {
-      overview: `${data.clientName} is a trusted healthcare provider in ${data.city}, known for quality pediatric care. The focus of this proposal is to enhance its digital presence by improving visibility, strengthening patient trust, and ensuring Blossoms remains a preferred choice for families across the region.`,
-      contentStrategy: [
-        "Child healthcare awareness",
-        "Doctor-led content",
-        "Patient experiences handled sensitively",
-        "Hospital and care environment",
-      ],
-      expectedResults: [
-        "Higher local visibility",
-        "Strong brand recall among parents",
-        "Improved profile visits and engagement",
-        "Increase in indirect enquiries",
-      ],
-      conclusion: `Our focus is to strengthen ${data.clientName}'s existing reputation by improving visibility, engagement, and digital trust across all platforms.`,
-    };
-  }
-
-  if (data.hospitalVariant === "trinity") {
-    return {
-      overview: `As ${data.clientName} strengthens its multi-speciality positioning, the focus of digital marketing is to build strong local visibility, patient trust, and consistent awareness across all departments.`,
-      contentStrategy: CONTENT_THEMES.hospital,
-      expectedResults: [
-        "Improved Google ranking",
-        "Better local visibility",
-        "Stronger patient trust",
-        "Consistent awareness in the target region",
-      ],
-      conclusion: `Our goal is to position ${data.clientName} as a trusted, visible, and preferred multi-speciality hospital in ${
-        data.city || "the target region"
-      }.`,
-    };
-  }
-
-  if (data.hospitalVariant === "aster") {
-    return {
-      overview: `${data.clientName} is a trusted multi-speciality healthcare institution with strong patient trust and medical infrastructure. This proposal focuses on strengthening its digital healthcare authority through speciality visibility, doctor-led communication, educational content, and consistent digital presence.`,
-      contentStrategy: CONTENT_THEMES.hospital,
-      expectedResults: [
-        "Improved speciality visibility",
-        "Higher local discoverability",
-        "Stronger patient trust",
-        "Better healthcare brand recall",
-      ],
-      conclusion: `Our objective is to strengthen ${data.clientName}'s digital authority, speciality visibility, and patient trust through structured healthcare communication and consistent brand positioning.`,
-    };
-  }
-
-  return {
-    overview: `${data.clientName} requires a strong healthcare digital presence to improve patient trust, local visibility, and consistent awareness. The focus is to position the hospital as a trusted healthcare brand in ${
-      data.city || "the target region"
-    }.`,
-    contentStrategy: CONTENT_THEMES.hospital,
-    expectedResults: [
-      "Improved digital visibility",
-      "Stronger patient trust",
-      "Better awareness across selected platforms",
-      "Consistent brand recall",
-      "More patient enquiries over time",
-    ],
-    conclusion: `Atoms Digital Solutions will help ${data.clientName} strengthen digital authority, patient trust, and local visibility through structured healthcare communication and consistent digital presence.`,
-  };
-}
-
-async function generateContentBlocksWithGemini(data) {
+function assertAiReady() {
   if (!ai) {
-    throw new Error("Gemini API key is missing.");
+    throw new Error("Gemini API key is missing. Please add VITE_GEMINI_API_KEY in .env.local or Vercel Environment Variables.");
   }
-
-  const prompt = `
-You are a content writer for Atoms Digital Solutions.
-
-Important rules:
-- Do NOT generate the full proposal.
-- Do NOT decide prices.
-- Do NOT create proposal sections.
-- Do NOT add extra services.
-- Only generate content blocks.
-- Return ONLY valid JSON.
-- contentStrategy and expectedResults must be arrays, not comma separated text.
-
-Client Data:
-Client Type: ${data.clientType}
-Client Name: ${data.clientName}
-City: ${data.city}
-Specialty / Industry: ${data.specialty}
-Package Input: ${data.packageText}
-Platforms Input: ${data.platformsText}
-Add-ons Input: ${data.addOnsText}
-Pricing Input: ${data.pricingText}
-
-Return JSON exactly in this format:
-{
-  "overview": "short professional overview paragraph",
-  "contentStrategy": ["point 1", "point 2", "point 3"],
-  "expectedResults": ["point 1", "point 2", "point 3"],
-  "conclusion": "short professional conclusion paragraph"
 }
 
-Tone:
-Professional, simple, industry-specific, and similar to Atoms Digital Solutions proposal style.
-`;
+async function generateAiText(prompt) {
+  assertAiReady();
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: MODEL_NAME,
     contents: prompt,
   });
 
-  const rawText = response.text || "";
-  const jsonText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-  const parsed = JSON.parse(jsonText);
-
-  return {
-    overview: cleanText(parsed.overview),
-    contentStrategy: normalizeArray(parsed.contentStrategy),
-    expectedResults: normalizeArray(parsed.expectedResults),
-    conclusion: cleanText(parsed.conclusion),
-  };
-}
-
-function getCurrentQuestion(validatedConversation) {
-  if (validatedConversation.hasInvalidPlatform) {
-    return "TikTok/Snapchat/Telegram are not valid platforms for this proposal. Please provide valid platforms only: Instagram, Facebook, YouTube, Google Business Profile, Website, or WhatsApp.";
-  }
-
-  const missingField = validatedConversation.missingFields[0];
-  const acceptedAnswers = validatedConversation.acceptedAnswers;
-  const clientTypeText = getValidatedAnswer(acceptedAnswers, "clientTypeText");
-  const clientType = detectClientType(clientTypeText);
-
-  if (missingField === "clientTypeText") {
-    return "Please choose proposal type: Hospital, Doctor, Solar, or Other Business.";
-  }
-
-  if (missingField === "clientDetailsText") {
-    if (clientType === "doctor") {
-      return "Please provide doctor name, specialty, and city. Format: Doctor name, Specialty, City";
-    }
-
-    if (clientType === "solar") {
-      return "Please provide solar business name and city. Format: Business Name, City";
-    }
-
-    return "Please provide hospital name and city. Format: Hospital Name, City";
-  }
-
-  if (missingField === "packageText") {
-    if (clientType === "doctor") {
-      return "Please provide package type and deliverables, like content creation, reels, posters, and monthly fee.";
-    }
-
-    if (clientType === "solar") {
-      return "Please provide services/package, like GMB, Social Media, Meta Ads, and Reporting.";
-    }
-
-    return "Please provide proposal/package type and deliverables, like reels, posters, SEO, GMB, or ads.";
-  }
-
-  if (missingField === "platformsText") {
-    return "Please provide platforms only: Instagram, Facebook, YouTube, Google Business Profile, Website, or WhatsApp.";
-  }
-
-  if (missingField === "addOnsText") {
-    return "Please provide add-ons, like Meta Ads only, WhatsApp Marketing, Basic SEO, or No add-ons.";
-  }
-
-  if (missingField === "pricingText") {
-    return "Please provide pricing. Rupee symbol is optional. You can use ₹, Rs, INR, or only numbers.";
-  }
-
-  return "All required details are collected. Please click Generate Proposal Preview.";
-}
-
-function isProposalDataContext(userInput, validatedConversation) {
-  const value = cleanText(userInput).toLowerCase();
-
-  if (!value) return true;
-
-  if (
-    validatedConversation.hasInvalidPlatform ||
-    validatedConversation.acceptedAnswers.length > 0
-  ) {
-    return true;
-  }
-
-  const proposalWords = [
-    "hospital",
-    "doctor",
-    "dr.",
-    "solar",
-    "business",
-    "client",
-    "package",
-    "proposal",
-    "reel",
-    "poster",
-    "platform",
-    "instagram",
-    "facebook",
-    "youtube",
-    "gmb",
-    "google business",
-    "website",
-    "whatsapp",
-    "addon",
-    "add-on",
-    "ads",
-    "seo",
-    "pricing",
-    "price",
-    "fee",
-    "budget",
-    "gst",
-    "rs",
-    "inr",
-    "₹",
-  ];
-
-  return proposalWords.some((word) => value.includes(word));
-}
-
-function getLocalAssistantReply(userInput) {
-  const value = cleanText(userInput).toLowerCase();
-
-  if (!value) {
-    return "Hello! I am the Atoms Digital Solutions Proposal Assistant. Share proposal details and I will guide you step by step.";
-  }
-
-  if (
-    value.includes("hi") ||
-    value.includes("hello") ||
-    value.includes("hey") ||
-    value.includes("good morning") ||
-    value.includes("good afternoon") ||
-    value.includes("good evening")
-  ) {
-    return "Hello! I am the Atoms Digital Solutions Proposal Assistant. I can help you prepare professional digital marketing proposals. You can share details in one line or step by step.";
-  }
-
-  if (value.includes("thank")) {
-    return "You're welcome. Atoms Digital Solutions is happy to help you create professional proposals.";
-  }
-
-  if (
-    value.includes("who are you") ||
-    value.includes("what can you do") ||
-    value.includes("help")
-  ) {
-    return "I am the Atoms Digital Solutions Proposal Assistant. I can answer basic questions, guide you through proposal data collection, and help generate structured digital marketing proposals.";
-  }
-
-  return "I am here to help as the Atoms Digital Solutions Proposal Assistant. For proposal creation, please share client type, client name, city, package, platforms, add-ons, and pricing.";
-}
-
-async function generateAssistantChatReply(userInput, messages) {
-  if (!ai) {
-    return getLocalAssistantReply(userInput);
-  }
-
-  const recentConversation = messages
-    .slice(-8)
-    .map((message) => {
-      const role = message.sender === "user" ? "User" : "Assistant";
-      return `${role}: ${getMessageText(message)}`;
-    })
-    .join("\n");
-
-  const prompt = `
-You are the Atoms Digital Solutions Proposal Assistant.
-
-Your role:
-- Behave like a helpful AI chatbot for Atoms Digital Solutions.
-- Answer casual messages naturally.
-- Help the user understand proposal requirements.
-- Guide the user to provide proposal details when needed.
-- Do not generate the final proposal in chat.
-- Do not invent pricing or services.
-- Keep replies short, professional, and friendly.
-
-Required proposal data:
-1. Client Type
-2. Client Name and City
-3. Package / Services
-4. Platforms
-5. Add-ons
-6. Pricing
-
-Recent conversation:
-${recentConversation}
-
-Current user message:
-${userInput}
-
-Reply as Atoms Digital Solutions Proposal Assistant.
-`;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-
-    return cleanText(response.text) || getLocalAssistantReply(userInput);
-  } catch (error) {
-    console.error("Assistant chat reply failed:", error);
-    return getLocalAssistantReply(userInput);
-  }
+  return cleanText(response.text);
 }
 
 export async function getGeminiReply(userInput, messages) {
-  const validatedConversation = getValidatedConversation(messages);
+  const currentMessage = cleanText(userInput);
+  const recentConversation = recentConversationToText(messages, 14);
 
-  if (isProposalDataContext(userInput, validatedConversation)) {
-    if (!validatedConversation.isComplete) {
-      return getCurrentQuestion(validatedConversation);
-    }
+  const prompt = `
+${buildAiSystemPrompt()}
 
-    return "All details are collected. Please click Generate Proposal Preview to create the final proposal.";
+Recent conversation:
+${recentConversation || "No previous conversation."}
+
+Current user message:
+${currentMessage || "User clicked or sent an empty message."}
+
+Reply now as a natural AI chatbot.
+Rules for this reply:
+- Do not use JSON.
+- Do not generate the full final proposal in chat.
+- If the user asks a question like "how many posters", answer from the latest proposal details in the conversation.
+- If details are missing, ask the next most useful question conversationally.
+- Keep it under 5 lines unless the user asks for more.
+`;
+
+  try {
+    const reply = await generateAiText(prompt);
+    return reply || "I am here to help you prepare the proposal. Please share the client details or ask me anything about the proposal.";
+  } catch (error) {
+    console.error("Gemini chatbot reply failed:", error);
+    return `Gemini AI is currently not available: ${error.message}`;
   }
-
-  return generateAssistantChatReply(userInput, messages);
 }
 
 export async function generateProposalWithGemini(messages) {
-  const data = extractProposalData(messages);
-  const contentBlocks = await generateContentBlocksWithGemini(data);
+  const conversation = conversationToText(messages);
 
-  return buildFinalProposal(data, contentBlocks);
+  const prompt = `
+${buildAiSystemPrompt()}
+
+You must now generate the FINAL PROPOSAL from the conversation below.
+
+Conversation:
+${conversation}
+
+Generate a complete Atoms Digital Solutions proposal.
+
+Strict proposal rules:
+- Use only the details provided by the user plus the fixed company/package/reference knowledge given above.
+- If user gave a known reference client/package like Blossoms, Trinity, Solar, Dr. Prathyusha, or Aster Ramesh, follow the matching reference style.
+- If user gave custom details, adapt professionally.
+- Do not say you are an AI.
+- Do not include markdown code fences.
+- Use clear headings.
+- Use bullet points with the symbol •.
+- Include Overview.
+- Include relevant service sections.
+- Include Content Strategy.
+- Include Expected Results where suitable.
+- Include Investment / Pricing using user-provided pricing if available.
+- Include Important Notes.
+- Include Conclusion.
+- Include company address at the end.
+- Avoid duplicate rupee symbols like "₹ ₹".
+- Keep patient experience wording sensitive: use attendee/caregiver/recovery experiences only if appropriate and avoid direct patient claims.
+- Do not invent false guarantees.
+
+Return only the final proposal text.
+`;
+
+  const proposal = await generateAiText(prompt);
+
+  if (!proposal) {
+    throw new Error("Gemini returned an empty proposal.");
+  }
+
+  return proposal;
 }
 
-export function generateLocalProposal(messages) {
-  const data = extractProposalData(messages);
-  const contentBlocks = getLocalContentBlocks(data);
+export function generateLocalProposal() {
+  return "Gemini AI proposal generation is currently unavailable. Please check Gemini API key, internet connection, or Vercel environment variables. This version does not generate rule-based local proposals.";
+}
 
-  return buildFinalProposal(data, contentBlocks);
+export function getValidatedConversation(messages) {
+  const userText = getUserMessages(messages)
+    .map((message) => getMessageText(message))
+    .join("\n");
+
+  return {
+    acceptedAnswers: [],
+    collectedData: {},
+    missingFields: [],
+    hasInvalidPlatform: false,
+    currentStep: 0,
+    isComplete: cleanText(userText).length > 0,
+  };
+}
+
+export function getConversationClientInfo(messages) {
+  const userText = getUserMessages(messages)
+    .map((message) => getMessageText(message))
+    .join("\n");
+
+  const firstPipeLine = userText
+    .split("\n")
+    .map((line) => cleanText(line))
+    .find((line) => line.includes("|"));
+
+  if (firstPipeLine) {
+    const parts = firstPipeLine.split("|").map((part) => cleanText(part));
+    const clientType = parts[0] || "AI Proposal";
+    const clientDetails = parts[1] || "Client";
+    const clientName = clientDetails.split(",")[0]?.trim() || "Client";
+
+    return {
+      clientType,
+      clientName,
+    };
+  }
+
+  const clientNameMatch = userText.match(/(?:for|client|hospital|doctor|business)\s*[:\-]?\s*([A-Za-z0-9 .&]+(?:Hospital|Clinic|Doctor|Solar|Solutions|Centre|Center|Dr\.? [A-Za-z .]+)?)/i);
+
+  return {
+    clientType: "AI Proposal",
+    clientName: cleanText(clientNameMatch?.[1]) || "AI Proposal Session",
+  };
 }

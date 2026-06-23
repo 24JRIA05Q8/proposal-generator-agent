@@ -4,14 +4,14 @@ import {
   getGeminiReply,
   generateProposalWithGemini,
   generateLocalProposal,
-  getValidatedConversation,
+  getConversationClientInfo,
 } from "./geminiService";
 import { saveProposalSession } from "./supabaseClient";
 import { COMPANY_DETAILS } from "./proposalConfig";
 
-const MESSAGE_DELAY_MS = 600;
-const MIN_LOADING_TIME_MS = 800;
-const AI_TIMEOUT_MS = 5000;
+const MESSAGE_DELAY_MS = 400;
+const MIN_LOADING_TIME_MS = 900;
+const AI_TIMEOUT_MS = 30000;
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -22,7 +22,7 @@ function withTimeout(promise, ms) {
     promise,
     new Promise((_, reject) =>
       setTimeout(
-        () => reject(new Error("AI took too long. Local fallback used.")),
+        () => reject(new Error("AI took too long. Please try again.")),
         ms
       )
     ),
@@ -31,7 +31,7 @@ function withTimeout(promise, ms) {
 
 function App() {
   const initialMessage =
-    "👋 Hi! I am the Atoms Digital Solutions Proposal Assistant.\n\n🤖 I can help you create professional digital marketing proposals.\n\nPlease enter details in this format:\nType | Client Name, City | Package | Platforms | Add-ons | Pricing";
+    "👋 Hi! I am the Atoms Digital Solutions AI Proposal Assistant.\n\n🤖 You can talk to me naturally. Share client details in any style, ask questions, or give everything in one line.\n\nExample:\nHospital | Blossoms Children Hospital, Guntur | Blossoms package - 12 reels, 4 posters | Instagram, Facebook, YouTube, GMB | Meta Ads only | 40000 service fee, 10000 ad budget separate";
 
   const [messages, setMessages] = useState([
     {
@@ -45,48 +45,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
-
-  function getFallbackReply() {
-    return "I am the Atoms Digital Solutions Proposal Assistant. Please share proposal details in this format:\nHospital/Doctor/Solar | Client name, City | Package details | Platforms | Add-ons | Pricing";
-  }
-
-  function getClientInfo(currentMessages) {
-    try {
-      const validatedConversation = getValidatedConversation(currentMessages);
-      const acceptedAnswers = validatedConversation.acceptedAnswers || [];
-
-      const clientType =
-        acceptedAnswers.find((item) => item.key === "clientTypeText")?.value ||
-        "";
-
-      const clientDetails =
-        acceptedAnswers.find((item) => item.key === "clientDetailsText")
-          ?.value || "";
-
-      const clientName =
-        clientDetails.split(",")[0]?.trim() || clientDetails || "Client";
-
-      return {
-        clientType,
-        clientName,
-      };
-    } catch (error) {
-      console.error(error);
-
-      const userMessages = currentMessages.filter(
-        (message) => message.sender === "user"
-      );
-
-      const clientType = userMessages[0]?.text || "";
-      const clientDetails = userMessages[1]?.text || "";
-      const clientName = clientDetails.split(",")[0]?.trim() || "Client";
-
-      return {
-        clientType,
-        clientName,
-      };
-    }
-  }
 
   function escapeHtml(text) {
     return String(text)
@@ -118,16 +76,11 @@ function App() {
       timeStyle: "short",
     });
 
-    const companyEmail = COMPANY_DETAILS.email;
-    const companyPhone = COMPANY_DETAILS.phone;
-    const companyAddress = COMPANY_DETAILS.address;
-    const companyName = COMPANY_DETAILS.shortName;
-
     printableWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${companyName} Proposal</title>
+          <title>Atoms Digital Solutions Proposal</title>
           <style>
             * {
               box-sizing: border-box;
@@ -153,12 +106,6 @@ function App() {
               background: white;
               padding: 40px;
               position: relative;
-              z-index: 1;
-            }
-
-            .content {
-              position: relative;
-              z-index: 2;
             }
 
             .top-bar {
@@ -222,8 +169,6 @@ function App() {
               line-height: 1.6;
               font-family: Arial, sans-serif;
               margin: 0;
-              position: relative;
-              z-index: 2;
             }
 
             .contact-footer {
@@ -232,8 +177,6 @@ function App() {
               border-top: 2px solid #0f3d75;
               background: rgba(232, 241, 255, 0.85);
               border-radius: 10px;
-              position: relative;
-              z-index: 2;
             }
 
             .contact-footer h3 {
@@ -296,37 +239,35 @@ function App() {
           </div>
 
           <div class="document">
-            <div class="content">
-              <div class="top-bar">
-                <div class="brand-block">
-                  <img 
-                    src="${logoUrl}" 
-                    class="print-logo" 
-                    alt="${companyName} Logo" 
-                  />
-                  <div>
-                    <h1 class="brand-title">${companyName}</h1>
-                    <p class="brand-subtitle">Digital Marketing Proposal</p>
-                  </div>
+            <div class="top-bar">
+              <div class="brand-block">
+                <img 
+                  src="${logoUrl}" 
+                  class="print-logo" 
+                  alt="Atoms Digital Solutions Logo" 
+                />
+                <div>
+                  <h1 class="brand-title">${COMPANY_DETAILS.shortName}</h1>
+                  <p class="brand-subtitle">AI Generated Digital Marketing Proposal</p>
                 </div>
-
-                <div class="generated-time">
-                  Generated on: ${generatedDateTime}
-                </div>
-
-                <button class="print-button" onclick="window.print()">
-                  Print / Save as PDF
-                </button>
               </div>
 
-              <pre>${safeProposal}</pre>
-
-              <div class="contact-footer">
-                <h3>Contact Details</h3>
-                <p><strong>Email:</strong> ${companyEmail}</p>
-                <p><strong>Phone:</strong> ${companyPhone}</p>
-                <p><strong>Address:</strong> ${companyAddress}</p>
+              <div class="generated-time">
+                Generated on: ${generatedDateTime}
               </div>
+
+              <button class="print-button" onclick="window.print()">
+                Print / Save as PDF
+              </button>
+            </div>
+
+            <pre>${safeProposal}</pre>
+
+            <div class="contact-footer">
+              <h3>Contact Details</h3>
+              <p><strong>Email:</strong> ${COMPANY_DETAILS.email}</p>
+              <p><strong>Phone:</strong> ${COMPANY_DETAILS.phone}</p>
+              <p><strong>Address:</strong> ${COMPANY_DETAILS.address}</p>
             </div>
           </div>
         </body>
@@ -360,7 +301,9 @@ function App() {
 
       const aiMessage = {
         sender: "ai",
-        text: aiReply || getFallbackReply(),
+        text:
+          aiReply ||
+          "Gemini AI did not return a reply. Please try again or check the API key.",
       };
 
       setMessages((prevMessages) => [...prevMessages, aiMessage]);
@@ -371,7 +314,7 @@ function App() {
 
       const fallbackMessage = {
         sender: "ai",
-        text: getFallbackReply(),
+        text: `Gemini AI error: ${error.message}`,
       };
 
       setMessages((prevMessages) => [...prevMessages, fallbackMessage]);
@@ -381,35 +324,19 @@ function App() {
   }
 
   async function generateProposalPreview() {
+    const userMessages = messages.filter((message) => message.sender === "user");
+
+    if (userMessages.length === 0) {
+      setSaveStatus("Please chat with the AI and share proposal details first.");
+      return;
+    }
+
     const loadingStartTime = Date.now();
 
     setIsGeneratingProposal(true);
-    setSaveStatus("");
+    setSaveStatus("Gemini AI is generating the full proposal...");
 
     try {
-      const validatedConversation = getValidatedConversation(messages);
-
-      if (!validatedConversation.isComplete) {
-        const aiReply = await getGeminiReply("", messages);
-
-        await wait(MESSAGE_DELAY_MS);
-
-        const aiMessage = {
-          sender: "ai",
-          text:
-            aiReply ||
-            "Please complete all required details correctly before generating the proposal.",
-        };
-
-        setMessages((prevMessages) => [...prevMessages, aiMessage]);
-        setSaveStatus(
-          "Please complete the conversation correctly before generating proposal."
-        );
-        return;
-      }
-
-      setSaveStatus("Generating proposal...");
-
       let proposalText = "";
 
       try {
@@ -418,17 +345,16 @@ function App() {
           AI_TIMEOUT_MS
         );
       } catch (error) {
-        console.error("Gemini proposal generation failed. Local fallback used.");
-        console.error(error);
+        console.error("Gemini proposal generation failed:", error);
         proposalText = generateLocalProposal(messages);
       }
 
       setProposal(proposalText);
 
       try {
-        setSaveStatus("Saving session to Supabase...");
+        setSaveStatus("Saving AI proposal session to Supabase...");
 
-        const clientInfo = getClientInfo(messages);
+        const clientInfo = getConversationClientInfo(messages);
 
         await saveProposalSession({
           clientName: clientInfo.clientName,
@@ -437,10 +363,10 @@ function App() {
           proposal: proposalText,
         });
 
-        setSaveStatus("Proposal generated and session saved to Supabase ✅");
+        setSaveStatus("AI proposal generated and session saved to Supabase ✅");
       } catch (saveError) {
         console.error("Supabase save failed:", saveError);
-        setSaveStatus("Proposal generated successfully ✅");
+        setSaveStatus("AI proposal generated successfully ✅");
       }
     } catch (error) {
       console.error(error);
@@ -481,8 +407,8 @@ function App() {
         />
 
         <div className="header-content">
-          <h1>Atoms Proposal Generator Agent</h1>
-          <p>Smart Proposal Builder for Digital Marketing Services</p>
+          <h1>Atoms AI Proposal Assistant</h1>
+          <p>Full Gemini AI Chatbot for Digital Marketing Proposals</p>
         </div>
       </header>
 
@@ -497,10 +423,10 @@ function App() {
 
             <div className="loading-spinner"></div>
 
-            <h2>Generating Proposal...</h2>
+            <h2>Gemini AI Generating...</h2>
             <p>
-              Please wait. AI is preparing content blocks and our system is
-              building the final proposal automatically.
+              Please wait. Gemini AI is reading the conversation and preparing
+              a complete proposal using Atoms reference proposal style.
             </p>
 
             <div className="loading-dots">
@@ -514,7 +440,12 @@ function App() {
 
       <main className="main">
         <section className="chat-section">
-          <h2>Conversation</h2>
+          <div className="section-title-row">
+            <h2>AI Conversation</h2>
+            <button className="new-button" onClick={resetApp}>
+              New
+            </button>
+          </div>
 
           <div className="chat-box">
             {messages.map((message, index) => (
@@ -531,8 +462,7 @@ function App() {
 
             {isLoading && (
               <div className="ai-message loading-message">
-                <strong>🤖 AI:</strong>{" "}
-                <span>Checking details</span> ✨
+                <strong>🤖 AI:</strong> <span>Thinking</span> ✨
                 <span className="typing-loader">
                   <span></span>
                   <span></span>
@@ -545,7 +475,7 @@ function App() {
           <div className="input-row">
             <input
               type="text"
-              placeholder="Type details: Type | Name, City | Package | Platforms | Add-ons | Pricing"
+              placeholder="Chat naturally with AI or share proposal details..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -557,7 +487,7 @@ function App() {
             />
 
             <button onClick={handleSend} disabled={isLoading}>
-              {isLoading ? "Sending..." : "Send"}
+              {isLoading ? "Thinking..." : "Send"}
             </button>
           </div>
 
@@ -567,8 +497,8 @@ function App() {
             disabled={isGeneratingProposal}
           >
             {isGeneratingProposal
-              ? "Generating Proposal..."
-              : "Generate Proposal Preview"}
+              ? "Generating AI Proposal..."
+              : "Generate AI Proposal Preview"}
           </button>
 
           <button className="generate-button" onClick={createPrintableDocument}>
@@ -589,7 +519,9 @@ function App() {
             {proposal ? (
               <pre>{proposal}</pre>
             ) : (
-              <p className="empty-text">Proposal preview will appear here.</p>
+              <p className="empty-text">
+                Gemini AI proposal preview will appear here.
+              </p>
             )}
           </div>
         </section>
